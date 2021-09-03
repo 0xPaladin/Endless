@@ -92,10 +92,16 @@ const UI = (app)=>{
       //buy it - handle tx notification
       C.buy(address,overrides).then(async tx => {
         let {hash} = tx
-        console.log("Buy "+id+" Submitted: "+hash)
+
+        //log and notification
+        let text = "Buy "+id+" Submitted: "+hash
+        console.log(text)
+        app.simpleNotify(text, "info", "center")
 
         tx.wait(1).then(res => {
-          console.log("Buy "+id+" Confirmed: "+res.blockNumber)
+          let text = "Buy "+id+" Confirmed: "+res.blockNumber
+          console.log(text)
+          app.simpleNotify(text, "info", "center")
         })
       })
     }

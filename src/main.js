@@ -33,7 +33,26 @@ let app = {
     return 1 + this._rarity.findIndex(v=>r < v)
   },
   init() {
-  }
+  },
+  // ----------- NOTIFY ------------------------------ //
+  notify(text, opts) {
+    let {layout="bottomCenter", type="info", timeout=1000, buttons=[]} = opts
+    new Noty({
+      text,
+      layout,
+      type,
+      timeout,
+      theme: "relax",
+      buttons
+    }).show()
+  },
+  simpleNotify(text, type="info", layout="center") {
+    this.notify(text, {
+      type,
+      timeout: 2500,
+      layout
+    })
+  },
 }
 
 EVMManager(app)
