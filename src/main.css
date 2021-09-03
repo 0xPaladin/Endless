@@ -1,0 +1,303 @@
+[v-cloak] {
+  display: none;
+}
+
+body {
+  margin: 0;
+  background-color: silver;
+}
+
+/* FONT Classes */
+
+h1, h2, h3, h4 {
+  font-family: 'Aclonica', serif;
+}
+
+bi {
+  font-weight: bold;
+  font-style: italic;
+}
+
+.font-lg {
+  font-size: large;
+}
+.font-sm {
+  font-size: small;
+}
+.font-blue {
+  color: blue;
+}
+.font-green {
+  color: green;
+}
+.font-red {
+  color: red;
+}
+.underline {
+  text-decoration: underline;
+}
+.pointer {
+  cursor: pointer;
+}
+.dashed {
+  text-decoration: underline dashed;
+}
+
+/*
+  Canvas
+*/
+
+
+/*
+  Classes for People data
+*/
+#people-data .row:nth-child(even) {
+  background-color: rgba(178, 234, 242, 0.5);
+}
+
+/*
+  Classes for Faction data
+*/
+#faction-data .faction {
+  padding-left: 5px;
+}
+#faction-data .faction:nth-child(even) {
+  background-color: rgba(178, 234, 242, 0.5);
+}
+
+/*
+  Classes for Plane data
+*/
+#plane-data .ruinName {
+  padding-right: 5px;
+}
+
+/*
+  Classes for SWN Character Sheet
+*/
+#char-editor .section-header {
+  text-align: center;
+  background-color: lightgrey;
+  margin-bottom: 3px;
+}
+#char-editor .section-header button {
+  margin: 2px;
+  width: 30px;
+}
+
+.swn-class {
+  width: 33%;
+  display: inline-flex;
+}
+.swn-atrib {
+  width: 16.5%;
+  display: inline-flex;
+}
+.swn-aspect {
+    width: 49.5%;
+    display: inline-flex;
+}
+.swn-skill {
+  width: 50%;
+  display: inline-flex;
+  margin-bottom: 1px;
+}
+#swn-level {
+  width: 50%;
+  display: inline-flex;
+}
+#swn-hp {
+  width: 50%;
+  display: inline-flex;
+}
+@media screen and (max-width: 767.98px) { 
+  .swn-aspect {
+    width: 100%;
+  }
+  .swn-class {
+    width: 100%;
+  }
+  .swn-skill {
+    width: 100%;
+  }
+  #swn-level {
+    width: 100%;
+    display: block;
+  }
+  #swn-hp {
+    width: 100%;
+    display: block;
+  }
+  .swn-atrib {
+    width: 33%;
+    display: inline-flex;
+  }
+}
+
+/*
+  Classes for Ruin display
+*/
+#ruin-display circle {
+  opacity: 0;
+}
+#ruin-display .visible {
+  opacity: 1;
+}
+#ruin-display .visible.region {
+  opacity: 0.2;
+  stroke: black;
+  stroke-width: 0.5;
+}
+#ruin-display .visible.zone {
+  opacity: 0.5;
+}
+#ruin-display .zone.been {
+  stroke: black;
+  stroke-width: 0.5;
+  stroke-dasharray:2;
+}
+#ruin-display .zone.within {
+  opacity: 1;
+  stroke-dasharray:2000;
+}
+.btn-skill {
+  border: 1px solid #007bff;
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-right: 2px;
+  cursor: pointer;
+}
+.btn-skill:hover {
+  background-color: #007bff;
+  color: white;
+}
+.btn-dmg {
+  border: 1px solid #ffc107;
+  border-radius: 3px;
+  padding: 0 4px;
+  cursor: pointer;
+}
+.btn-dmg:hover {
+  background-color: #ffc107;
+  color: white;
+}
+.ruin-encounter {
+  padding-top: 2px;
+  border-bottom: 1px solid black;
+}
+.hd-box {
+  display:inline-block;
+  width:15px;
+  height:15px;
+  border: 1px solid black;
+  margin-right: 2px;
+}
+.hd-box.hit {
+  background-color: red;
+}
+
+
+/*
+  Main UI
+*/
+
+#ui-main {
+  position : fixed;
+  width:100%;
+  top: 0;
+  z-index : 10;
+}
+
+#output {
+  width: 100%;
+  height: 100%
+}
+
+.moreInfo {
+  cursor: pointer;
+  text-decoration: underline;
+  color: blue;
+}
+
+.selected {
+  background-color: rgba(161, 238, 155, 0.5);
+}
+
+.swn-abilities p {
+  margin: 4px;
+}
+.swn-abilities p:before {
+  content: "⬢";
+}
+
+#polys {
+  z-index: -1;
+}
+#points {
+  z-index: 1;
+}
+#hex {
+  z-index: 0;
+}
+
+.radial {
+  stroke: black;
+  fill: none;
+  opacity: 0.3;
+}
+.compass{
+  stroke: black;
+  opacity: 0.3;
+}
+.hazard.mist {
+  stroke: aqua;
+}
+.hazard.death {
+  stroke: black;
+}
+.hazard.stones {
+  stroke: brown;
+}
+
+
+.btn-testnet {
+  background-color: gold;
+}
+
+/*
+  Loader Spinner
+*/
+
+#spinner {
+  position : fixed;
+  left : 50%;
+  top: 50%;
+  transform: scale(4, 4);
+}
+.lds-dual-ring {
+  display: inline-block;
+  width: 64px;
+  height: 64px;
+}
+.lds-dual-ring.hidden {
+  display: none;
+}
+.lds-dual-ring:after {
+  content: " ";
+  display: block;
+  width: 46px;
+  height: 46px;
+  margin: 1px;
+  border-radius: 50%;
+  border: 5px solid #fff;
+  border-color: #fff transparent #fff transparent;
+  animation: lds-dual-ring 1.2s linear infinite;
+}
+@keyframes lds-dual-ring {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
