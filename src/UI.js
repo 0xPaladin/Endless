@@ -1,5 +1,9 @@
+//utils
+import {Capitalize} from "./endless-utils.js"
+
 const UI = (app)=>{
-  let {h, Component, render, html, Shard} = app.UI
+  let sig = ()=>app.eth.contracts.sig;
+  let {h, Component, render, html, Shard} = app.UI;
 
   class App extends Component {
     constructor() {
@@ -8,12 +12,16 @@ const UI = (app)=>{
         shard: {},
         time: Date.now(),
         network: "",
+        block: 0,
         address: "",
-        nFixed : 0,
-        balance : 0,
-        cost : 1,
-        NFT : {},
-        viewShard : ""
+        nFixed: 0,
+        balance: 0,
+        cost: 1,
+        reveal: 0,
+        myShards: [],
+        NFT: {},
+        gen: "Gen0",
+        sid: 0
       };
     }
 
@@ -35,16 +43,14 @@ const UI = (app)=>{
       clearInterval(this.timer);
     }
 
-    setViewShard = (event) => {
-      this.setState({viewShard: event.target.value});
-    }
-
-    setBalance(balance) {
-      this.setState({balance});
+    setSelect = (key,evt)=>{
+      let s = {}
+      s[key] = event.target.value
+      this.setState(s);
     }
 
     setAddress(_address, _network) {
-      let [id,name,nFixed,cost] = _network
+      let[id,name,nFixed,cost] = _network
 
       this.setState({
         address: _address,
@@ -54,12 +60,8 @@ const UI = (app)=>{
       });
     }
 
-    setNFT(NFT) {
-      this.setState({NFT});
-    }
-
-    setShard (hash) {
-      let shard = app.shard.byHash(hash);
+    setShard(c, id) {
+      let shard = app.shard.byContract(c, id)
       this.setState({
         shard
       });
@@ -71,73 +73,146 @@ const UI = (app)=>{
       let hash = "0x" + chance.hash({
         length: 40
       })
-      let shard = app.shard.byContract(hash, chance.natural()) 
-      this.setShard(shard.hash)
+      this.setShard(hash, chance.natural())
     }
 
-    shortAddress () {
+    getGenAddress() {
+      let {NFT, gen} = this.state
+      return NFT[gen] ? NFT[gen][3] : ""
+    }
+
+    shortAddress() {
       let {address} = this.state
-      return address.slice(0,5)+"..."+address.slice(-4)
+      return address.slice(0, 5) + "..." + address.slice(-4)
     }
 
     //buy the nft 
-    buy (id) {
-      let {cost} = this.state
-      let {address} = app.eth.contracts[id]
-      let C = app.eth.contracts.ERC721Buyer
+    commit(id) {
+      let reveal = this.state.reveal
+      let {address} = sig()[id]
+      let what = reveal != 0 ? "reveal" : "commit"
+      let C = sig().ERC721CommitReveal
       let overrides = {
-        value : app.eth.parseEther(cost.toString())
+        gasLimit: reveal != 0 ? "500000" : "200000"
       }
 
       //buy it - handle tx notification
-      C.buy(address,overrides).then(async tx => {
+      C[what](address, overrides).then(async tx=>{
         let {hash} = tx
 
         //log and notification
-        let text = "Buy "+id+" Submitted: "+hash
+        let text = [what, id, "submitted:", hash].join(" ")
         console.log(text)
         app.simpleNotify(text, "info", "center")
 
-        tx.wait(1).then(res => {
-          let text = "Buy "+id+" Confirmed: "+res.blockNumber
+        tx.wait(1).then(res=>{
+          let text = [what, id, "confirmed:", res.blockNumber].join(" ")
           console.log(text)
           app.simpleNotify(text, "info", "center")
-        })
-      })
+        }
+        )
+      }
+      )
+    }
+
+    //buy the nft 
+    buy(id) {
+      let {cost} = this.state
+      let {address} = app.eth.contracts[id]
+      let C = sig().ERC721Buyer
+      let overrides = {
+        value: app.eth.parseEther(cost.toString())
+      }
+
+      //buy it - handle tx notification
+      C.buy(address, overrides).then(async tx=>{
+        let {hash} = tx
+
+        //log and notification
+        let text = "Buy " + id + " Submitted: " + hash
+        console.log(text)
+        app.simpleNotify(text, "info", "center")
+
+        tx.wait(1).then(res=>{
+          let text = "Buy " + id + " Confirmed: " + res.blockNumber
+          console.log(text)
+          app.simpleNotify(text, "info", "center")
+        }
+        )
+      }
+      )
     }
 
     //create a buy button for every NFT 
-    buyButtons (id) {
-      let {cost, network, balance, NFT} = this.state
-      let [max,n,nOwned,owned] = NFT[id]
-      let button = html`<button type="button" class="btn btn-success btn-block my-2" onClick=${() => this.buy(id)}>Buy a ${id} Shard [${cost} ${network}] [${max-n} remain] </button>`
-      return balance >= cost ? button : ""
+    commitRevealButton() {
+      let id = "GenE"
+      let {network, reveal, block} = this.state
+
+      let button;
+      if (reveal != 0 && block - reveal < 255) {
+        button = html`<button type="button" class="btn btn-success btn-block" onClick=${()=>this.commit(id)} disabled=${block - reveal < 7}>Claim a ${id} Shard [gas only]</button>`
+      } else {
+        button = html`<button type="button" class="btn btn-info btn-block" onClick=${()=>this.commit(id)}>Commit to Claim a ${id} Shard [gas only]</button>`
+      }
+      return button
     }
 
-    //select list for owned nfts 
-    nftList () {
-      let list = Object.values(this.state.NFT).map(e => e[3]).flat().map(app.shard.byHash)
-      //provide nothing if no claims 
-      if(list.length == 0) return
+    claimCosmic(_721, id) {
+      let C = sig().ShardCosmicClaim
 
-      return html`
-        <div class="input-group mb-2">
-          <div class="input-group-prepend">
-            <span class="input-group-text" id="basic-addon1">My Shards</span>
-          </div>
-          <select class="custom-select" value=${this.state.viewShard} onChange=${this.setViewShard}>
-            ${list.map(shard => html`
-              <option value=${shard.hash}>Gen ${shard.gen} #${shard.id}</option>
-            `)}
-          </select>
-          <div class="input-group-append">
-            <button class="btn btn-outline-success" type="button" onClick=${() => this.setShard(this.state.viewShard)}>View</button>
-          </div>
+      //claim it - handle tx notification
+      //claim(address nft, uint256 id)
+      C.claim(_721, id).then(async tx=>{
+        let {hash} = tx
+
+        //log and notification
+        let text = "Claim Submitted: " + hash
+        console.log(text)
+        app.simpleNotify(text, "info", "center")
+
+        tx.wait(1).then(res=>{
+          let text = "Claim Confirmed: " + res.blockNumber
+          console.log(text)
+          app.simpleNotify(text, "info", "center")
+        }
+        )
+      }
+      )
+    }
+
+    ownedShards() {
+      let {myShards, NFT} = this.state
+
+      let perShard = (key)=>{
+        let shard = app.shard.byHash(key)
+        let {gen, id, title, _721, _hex} = shard
+        let cosmic = NFT["Gen" + gen] ? NFT["Gen" + gen][2].find(nft=>nft.id == id).cosmic : 0
+
+        return html`
+            <div class="row">
+                <div class="col" align="left" onClick=${()=>this.setShard(_721, id)}>[g${gen}.${id}] <span class="link">${Capitalize(title)}</span></div>
+                <div class="col-1">${_hex.size}</div>
+                <div class="col">${cosmic.toFixed(1)} C<button class="btn btn-outline-success mx-2" type="button" onClick=${()=>this.claimCosmic(_721, id)}>Claim</button></div>
+            </div>
+        `
+      }
+
+      let out = html`
+        <h3 class="mt-2 mb-0">My Shards</h3>
+        <div class="row font-weight-bold">
+            <div class="col">Shard</div>
+            <div class="col-1">Size</div>
+            <div class="col">Cosmic</div>
         </div>
-      ` 
+        ${myShards.map(key=>perShard(key))}
+      `
+
+      return myShards.length == 0 ? "" : out
     }
 
-    render(props, {shard, address, network, balance, nFixed, NFT}) {
+    render(props, {shard, address, network, balance, nFixed, NFT, gen, myShards}) {
+      let Gen0 = NFT.Gen0
+
       return html`
           <div class="app">
             <div class="d-flex justify-content-between align-items-center">
@@ -157,13 +232,35 @@ const UI = (app)=>{
                 Each is represented by a unique 64 character hexadecimal string that the site 
                 uses to generate the same shard every time.
               </p>
-              ${!["FTM","gETH"].includes(network) ? html`
+              ${!["FTM", "gETH"].includes(network) ? html`
                 <p class="rounded bg-danger text-white p-2" align="center">
                   Endless is not available on this chain. Please change to the Fantom Network.
                 </p>
               ` : ""}
-              ${Object.keys(NFT).map(id => this.buyButtons(id))}
-              ${this.nftList()}
+              <div class="row">
+                <div class="col">
+                    ${this.commitRevealButton()}
+                </div>
+                <div class="col">
+                    ${Gen0 ? html`<button type="button" class="btn btn-success btn-block" onClick=${()=>this.buy('Gen0')}>Buy a Gen0 Shard [${Gen0[4]} ${network}] [${Gen0[0] - Gen0[1]} remain]</button>` : ""} 
+                </div>
+              </div>
+              ${this.ownedShards()}
+              <div class="input-group mb-2">
+                <div class="input-group-prepend">
+                  <span class="input-group-text">View Any Shard</span>
+                </div>
+                <select class="custom-select" value=${this.state.gen} onChange=${(e)=>this.setSelect("gen", e)}>
+                  ${Object.keys(NFT).map(id=>html`<option value=${id}>${id}</option>`)}
+                </select>
+                <div class="input-group-prepend">
+                  <span class="input-group-text">#</span>
+                </div>
+                <input type="number" class="form-control" min="0" max=${NFT[gen] ? NFT[gen][1] - 1 : 0} value=${this.state.sid} onChange=${(e)=>this.setSelect("sid", e)} />
+                <div class="input-group-append">
+                  <button class="btn btn-outline-success" type="button" onClick=${()=>this.setShard(this.getGenAddress(), this.state.sid)}>View</button>
+                </div>
+              </div>
               <${Shard} shard=${shard}><//>
             </div>
           </div>

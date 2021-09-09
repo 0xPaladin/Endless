@@ -42,6 +42,11 @@ bi {
 .dashed {
   text-decoration: underline dashed;
 }
+.link {
+  color: blue;
+  text-decoration: underline;
+  cursor: pointer;
+}
 
 /*
   Canvas

@@ -1,5 +1,3 @@
-//d3 
-import * as d3 from "https://cdn.skypack.dev/d3@7";
 //localforage
 import "../lib/localforage.1.7.1.min.js"
 //chance

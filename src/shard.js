@@ -17,6 +17,7 @@ const GEN = {
   "721": {
     "0xB60794c2fcbc7a74672D273F80CE1CA5050435a8": 0,
     "0x8dB24cD8451B133115588ff1350ca47aefE2CB8c": 0,
+    "0x693eD718D4b4420817e0A2e6e606b888DCbDb39B": "E"
   }
 }
 
@@ -27,7 +28,8 @@ const GEN = {
 const SIZE = {
   ids: [[0, 1, 2, 3, 4], [45, 35, 15, 4, 1]],
   gen: {
-    "0": [[0, 1], [1, 1]]
+    "0": [[0, 1, 2, 3, 4], [45, 35, 15, 4, 1]],
+    "E": [[0, 0], [1, 1]]
   },
   text: ["small", "sizable", "large", "expansive", "vast"],
   regions: ["1d3+1", "2d6", "3d8", "4d10", "5d12"],
@@ -369,7 +371,11 @@ const ShardFactory = (app)=>{
       //get gen 
       let gen = this.gen = GEN["721"][_721] || 0
       //hash 
-      let hash = this.hash = keccak256(["string", "address", "uint256"], [GEN.base, _721, id])
+      this.key = keccak256(["string", "address", "uint256"], [GEN.base, _721, id])
+      let hash = this.hash = opts.hash || this.key 
+
+      //is owned
+      this.isOwned = opts.isOwned || false
 
       //alignment
       let {_alignment, _safety} = Safety(hash)
@@ -498,17 +504,18 @@ const ShardFactory = (app)=>{
     Game Functions
   */
 
-  const add = (_721, id, hash)=>{
-    all[hash] = new Shard(_721, id)
-    return all[hash]
+  const add = (_721, id, key, opts)=>{
+    all[key] = new Shard(_721, id, opts)
+    return all[key]
   }
 
-  const byContract = app.shard.byContract = (_721, id) => {
+  const byContract = app.shard.byContract = (_721, id, opts) => {
     //hash 
-    let hash = keccak256(["string", "address", "uint256"], [GEN.base, _721, id])
-    return all[hash] || add(_721, id,hash)
+    let key = keccak256(["string", "address", "uint256"], [GEN.base, _721, id])
+    return all[key] || add(_721, id, key, opts)
   }
-  app.shard.byHash = (hash) => all[hash]; 
+  app.shard.byHash = (hash) => all[hash];
+  app.shard.myShards = () => Object.values(all).filter(s => s.isOwned).map(s => s.key);
 
   /*
     UI
