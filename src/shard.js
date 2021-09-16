@@ -306,7 +306,7 @@ const generateTerrain = (seed,T,n)=>{
   let majT = []
     , i = 0;
   while (majT.length < n) {
-    let isMaj = integer(keccak256(["bytes32", "string", "uint256"], [hash, "isMaj", i]), 10) < majTP
+    let isMaj = i == 0 || integer(keccak256(["bytes32", "string", "uint256"], [hash, "isMaj", i]), 10) < majTP
     //
     if (isMaj) {
       //add to major T

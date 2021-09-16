@@ -57,7 +57,8 @@ const CONTRACTS = {
     "ERC721CommitReveal" : "0xD124F097093F751E1620AA32f7f9A4B344eF9Be1", 
     "Stats" : "0xeEd019D0726e415526804fb3105a98323911E494", 
     "ShardCosmicClaim" : "0xAF63B2Dd717CEC099d262680dDe7692B48Ab9b34",
-    "ERC721Utilities" : "0xf8f2ea668F996B45f9062BbA0FF6a5Eb31290eA5"
+    "ERC721Utilities" : "0xf8f2ea668F996B45f9062BbA0FF6a5Eb31290eA5",
+    "TransferCosmic" : "0x208C03B576F3bd8142A4de897C3D309176e09D93"
   }
 }
 const READONLY = ["ERC721FullNoBurn.Gen0","ERC721FullNoBurn.GenE","ERC721FullNoBurn.GenR","Stats","ERC721CommitReveal","ERC721Utilities"]
@@ -104,7 +105,8 @@ const loadContracts = (netId) => {
 const EVMManager = async (app) => {
   app.eth = {
     contracts : {},
-    parseEther : ethers.utils.parseEther
+    parseEther : ethers.utils.parseEther,
+    parseUnits : ethers.utils.parseUnits
   }
   const read = () => app.eth.contracts.read;
   let address = "", NFT = {};

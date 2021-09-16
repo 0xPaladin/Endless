@@ -5,6 +5,77 @@ const UI = (app)=>{
   let sig = ()=>app.eth.contracts.sig;
   let {h, Component, render, html, Shard} = app.UI;
 
+  class Transfer extends Component {
+    constructor() {
+      super();
+      this.state = {
+          gen : "",
+          id : 0,
+          val : 0
+      }
+    }
+    setSelect = (key,evt)=>{
+      let s = {}
+      s[key] = event.target.value
+      this.setState(s);
+    }
+    transferToken() {
+      let NFT = app.UI.main.state.NFT
+      let {data} = this.props
+      let {gen, id, val} = this.state 
+
+      let C = sig().TransferCosmic
+      
+      //handles transfer 
+      //transfer(address fromNFT, uint256 fromId, address toNFT, uint256 toId, uint256 val) 
+      C.transfer(data.nft, data.id, NFT[gen].address, id, app.eth.parseUnits(val)).then(async tx=>{
+        let {hash} = tx
+
+        //log and notification
+        let text = "Transfer Submitted: " + hash
+        console.log(text)
+        app.simpleNotify(text, "info", "center")
+
+        tx.wait(1).then(res=>{
+          let text = "Transfer Confirmed: " + res.blockNumber
+          console.log(text)
+          app.simpleNotify(text, "info", "center")
+        }
+        )
+      }
+      )
+      console.log(this.props, this.state)
+    }
+    render({data}, state) {
+        let main = app.UI.main
+        let {nft, id, what, max} = data
+
+        return html`
+            <div class="row mx-2">
+              <div class="input-group mb-2">
+                <div class="input-group-prepend">
+                  <span class="input-group-text">Destination</span>
+                </div>
+                <select class="custom-select" value=${state.gen} onchange=${(e)=>this.setSelect("gen", e)}>
+                  ${Object.keys(main.state.NFT).map(id=>html`<option value=${id}>${id}</option>`)}
+                </select>
+                <div class="input-group-prepend">
+                  <span class="input-group-text">#</span>
+                </div>
+                <input type="number" class="form-control" min="0" value=${state.id} onInput=${(e)=>this.setSelect("id", e)} />
+                <div class="input-group-prepend">
+                  <span class="input-group-text">Amt</span>
+                </div>
+                <input type="number" class="form-control" min="0" max=${max} step="0.01" value=${state.val} onInput=${(e)=>this.setSelect("val", e)} />
+                <div class="input-group-append">
+                  <button class="btn btn-outline-success" type="button" disabled=${state.val > max} onClick=${()=>this.transferToken()}>Transfer</button>
+                </div>
+              </div>
+            </div>
+          `
+    }
+  }
+
   class App extends Component {
     constructor() {
       super();
@@ -21,7 +92,9 @@ const UI = (app)=>{
         myShards: [],
         NFT: {},
         gen: "Gen0",
-        sid: 0
+        sid: 0,
+        transfer: {},
+        tfrVal: 0
       };
     }
 
@@ -181,7 +254,7 @@ const UI = (app)=>{
     }
 
     ownedShards() {
-      let {myShards, NFT} = this.state
+      let {myShards, NFT, transfer} = this.state
 
       let perShard = (key)=>{
         let shard = app.shard.byHash(key)
@@ -192,8 +265,25 @@ const UI = (app)=>{
             <div class="row">
                 <div class="col" align="left" onClick=${()=>this.setShard(_721, id)}>[g${gen}.${id}] <span class="link">${Capitalize(title)}</span></div>
                 <div class="col-1">${_hex.size}</div>
-                <div class="col">${cosmic.toFixed(1)} C<button class="btn btn-outline-success mx-2" type="button" onClick=${()=>this.claimCosmic(_721, id)}>Claim</button></div>
+                <div class="col">${cosmic.toFixed(1)} C</div>
+                <div class="col-1">
+                    <div class="dropdown">
+                        <button class="btn btn-light mx-2" type="button" data-toggle="dropdown"><img src="media/md-menu.svg" height="20" width="20"></img></button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item" href="#" onClick=${()=>this.claimCosmic(_721, id)}>Claim Cosmic</a>
+                            <a class="dropdown-item" href="#" onClick=${()=>this.setState({
+          transfer: {
+            nft: _721,
+            id,
+            what: "Cosmic",
+            max: cosmic,
+          }
+        })}>⇒ Cosmic</a>
+                        </div>
+                    </div>
+                </div>
             </div>
+            ${transfer.nft && transfer.nft == _721 && transfer.id == id ? html`<${Transfer} data=${transfer}><//>` : ""}
         `
       }
 
@@ -203,6 +293,7 @@ const UI = (app)=>{
             <div class="col">Shard</div>
             <div class="col-1">Size</div>
             <div class="col">Cosmic</div>
+            <div class="col-1"></div>
         </div>
         ${myShards.map(key=>perShard(key))}
       `
