@@ -10,6 +10,9 @@ const NETRPC = {
   250 : "https://rpc.ftm.tools"
 }
 
+const FTMSCAN = "https://api.ftmscan.com/api?module=account&action=tokennfttx&contractaddress="
+const FTMAPI = "&apikey=KSTS4EH3UBX6J7BW3J31NP469P863VE2DH"
+
 if(window.ethereum) {
   // A Web3Provider wraps a standard Web3 provider, which is
   // what Metamask injects as window.ethereum into each page
@@ -50,13 +53,14 @@ const CONTRACTS = {
     "ERC721Buyer" : "0xB60794c2fcbc7a74672D273F80CE1CA5050435a8",
     "ERC721FullNoBurn.Gen0" : "0x8dB24cD8451B133115588ff1350ca47aefE2CB8c",
     "ERC721FullNoBurn.GenE" : "0x693eD718D4b4420817e0A2e6e606b888DCbDb39B",
+    "ERC721FullNoBurn.GenR" : "0xce761D788DF608BD21bdd59d6f4B54b2e27F25Bb",
     "ERC721CommitReveal" : "0xD124F097093F751E1620AA32f7f9A4B344eF9Be1", 
     "Stats" : "0xeEd019D0726e415526804fb3105a98323911E494", 
-    "ShardCosmicClaim" : "0xF32974F4397D45694F13c873159d85D3F6deF0B9",
+    "ShardCosmicClaim" : "0xAF63B2Dd717CEC099d262680dDe7692B48Ab9b34",
     "ERC721Utilities" : "0xf8f2ea668F996B45f9062BbA0FF6a5Eb31290eA5"
   }
 }
-const READONLY = ["ERC721FullNoBurn.Gen0","ERC721FullNoBurn.GenE","Stats","ERC721CommitReveal","ERC721Utilities"]
+const READONLY = ["ERC721FullNoBurn.Gen0","ERC721FullNoBurn.GenE","ERC721FullNoBurn.GenR","Stats","ERC721CommitReveal","ERC721Utilities"]
 
 //id,name,nFixed,cost
 const NETDATA = {
@@ -64,15 +68,18 @@ const NETDATA = {
   250 : [250,"FTM",0,1]
 }
 
-const NFTIDS = ["Gen0", "GenE"]
-
-const COST = {
+const NFTIDS = {
   5 : {
-    "Gen0" : 0.001
+    "Gen0" : {
+      cost : 0.001
+    }
   },
   250 : {
-    "Gen0" : 1, 
-    "GenE" : 0
+    "Gen0" : {
+      cost : 1
+    },
+    "GenE" : {},
+    "GenR" : {}
   }
 }
 
@@ -108,26 +115,51 @@ const EVMManager = async (app) => {
 
   //get commits
   const checkCommits = (address) => {
+    if(!CONTRACTS[chainId].ERC721CommitReveal)
+      return
+
     read().ERC721CommitReveal.activeCommits(address, CONTRACTS[chainId]["ERC721FullNoBurn.GenE"]).then(res => {
       let reveal = res.toNumber()
       app.UI.main.setState({reveal})
     })
   }
 
+  const checkRarity = async () => {
+    let ids = {}
+    ////https://api.ftmscan.com/api?module=account&action=tokennfttx&contractaddress=0xce761D788DF608BD21bdd59d6f4B54b2e27F25Bb&address=0x592Ad5d7618994464885fb485953a51DE119586A
+    let {result = []} = await $.get(FTMSCAN+"0xce761D788DF608BD21bdd59d6f4B54b2e27F25Bb"+"&address="+address+FTMAPI)
+
+    result.forEach(res => {
+      let {tokenID, to, blockNumber} = res 
+      blockNumber = Number(blockNumber)
+
+      //sending token 
+      if(ethers.utils.getAddress(to) == address){
+        ids[tokenID] = blockNumber
+      } 
+      //receiving token 
+      else {
+        delete ids[tokenID]
+      }
+    })
+
+    return Object.keys(ids).map(Number)
+  }
+
   //if there is a nft balance poll for data 
   const checkNFTIds = async (id, nft) => {
     let _stats = CONTRACTS[chainId].Stats
-    let _721 = nft[3]
+    let _721 = nft.address
     let C = read().ERC721Utilities
 
-    let ids = (await C.getNFTIdBatch(_721, address)).map(bn => bn.toNumber())
+    let ids = id == "GenR" ? await checkRarity() : (await C.getNFTIdBatch(_721, address)).map(bn => bn.toNumber())
 
     let _cosmic = (await C.getStatsOfIdBatch(_stats,"SRD.COSMIC",_721,ids))
       .map(bn => Number(ethers.utils.formatUnits(bn)))
     
     let _hash = (await C.getStatsOfIdBatch(_stats,"HASH",_721,ids)).map(bn => bn.toHexString())
 
-    nft[2] = ids.map((id,i) => {
+    nft.owned = ids.map((id,i) => {
       let hash = _hash[i] == "0x00" ? null : _hash[i]
       let isOwned = true
       //generate and save 
@@ -140,53 +172,24 @@ const EVMManager = async (app) => {
         _721
       }
     })
+
+    _cosmic.forEach((val,i) => app.shard.byContract(_721,ids[i]).cosmic = val)
   }
 
   //check address for NFT balance
   const checkNFTBalance = async (id) => {
-    let cost = COST[chainId][id]
+    let {cost = 0} = NFTIDS[chainId][id]
     let C = read()[id]
-    let getStat = read().Stats.getStat
 
-    let nft = NFT[id] = NFT[id] || [-1,-1,[],C.address,cost]
+    let nft = NFT[id] = NFT[id] || {
+      max : -1,
+      n : -1,
+      owned : [],
+      address : C.address,
+      cost
+    }
 
-    //check max
-      if(nft[0] == -1){
-        let _max = await C.MAX() 
-        nft[0] = _max.gt(10**6) ? 10**7 : _max.toNumber() 
-      }
-
-      //check total 
-      nft[1] = (await C.totalSupply()).toNumber()
-
-    checkNFTIds(id,nft)
-  }
-
-
-  const poll = async () => {
-    if(!CONTRACTS[chainId]) return 
-    let {read} = app.eth.contracts
-
-    Object.entries(COST[chainId]).forEach(async e => {
-
-
-      /*
-      //run through balance if it hasn't changed
-      if(balance > nft[2]){
-        nft[2] = balance
-        nft[3] = []
-
-        
-      }
-      */
-
-      //get cosmic of shards 
-      /*
-      nft[3].forEach(async e => {
-        let cosmic = await getStat("SRD.COSMIC", C.address, e[0])
-      })
-      */
-    })
+    checkNFTIds(id,nft).catch(console.log)
   }
 
   //poll for address change 
@@ -206,12 +209,16 @@ const EVMManager = async (app) => {
     let block = await provider.getBlockNumber()
     //get balance 
     let balance = Number(ethers.utils.formatUnits(await signer.getBalance()))
+
+    //check if the chain exists
+    if(!CONTRACTS[chainId])
+      return
     
     //look for commits
     checkCommits(address)
 
     //check nfts 
-    Object.keys(COST[chainId]).forEach(id => checkNFTBalance(id))
+    Object.keys(NFTIDS[chainId]).forEach(id => checkNFTBalance(id))
 
     //get owned shards 
     let myShards = app.shard.myShards()

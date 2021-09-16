@@ -132,7 +132,7 @@ export let ShardCosmicClaim = [
 	},
 	{
 		"inputs": [],
-		"name": "MAXCLAIM",
+		"name": "MAX",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -158,12 +158,51 @@ export let ShardCosmicClaim = [
 	},
 	{
 		"inputs": [],
+		"name": "SIZE",
+		"outputs": [
+			{
+				"internalType": "contract IShardSize",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "SIZEMULTI",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "STATID",
 		"outputs": [
 			{
 				"internalType": "string",
 				"name": "",
 				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "STATS",
+		"outputs": [
+			{
+				"internalType": "contract IStats",
+				"name": "",
+				"type": "address"
 			}
 		],
 		"stateMutability": "view",
@@ -334,19 +373,6 @@ export let ShardCosmicClaim = [
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "sc",
-		"outputs": [
-			{
-				"internalType": "contract IStats",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
 		"inputs": [
 			{
 				"internalType": "address",
@@ -373,6 +399,19 @@ export let ShardCosmicClaim = [
 			}
 		],
 		"name": "setPeriod",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "newM",
+				"type": "uint256"
+			}
+		],
+		"name": "setSizeMulti",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"

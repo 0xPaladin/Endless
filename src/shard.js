@@ -17,7 +17,8 @@ const GEN = {
   "721": {
     "0xB60794c2fcbc7a74672D273F80CE1CA5050435a8": 0,
     "0x8dB24cD8451B133115588ff1350ca47aefE2CB8c": 0,
-    "0x693eD718D4b4420817e0A2e6e606b888DCbDb39B": "E"
+    "0x693eD718D4b4420817e0A2e6e606b888DCbDb39B": "E",
+    "0xce761D788DF608BD21bdd59d6f4B54b2e27F25Bb": "R"
   }
 }
 
@@ -28,25 +29,33 @@ const GEN = {
 const SIZE = {
   ids: [[0, 1, 2, 3, 4], [45, 35, 15, 4, 1]],
   gen: {
-    "0": [[0, 1, 2, 3, 4], [45, 35, 15, 4, 1]],
-    "E": [[0, 0], [1, 1]]
+    "0": [[1, 2, 3, 4], [35, 15, 4, 1]],
+    "E": [[0, 0], [1, 1]],
+    "R": [[0, 0], [1, 1]],
   },
   text: ["small", "sizable", "large", "expansive", "vast"],
-  regions: ["1d3+1", "2d6", "3d8", "4d10", "5d12"],
+  byCosmic : [10,20,50,200,1000,5000],
+  regions: ["2d2", "2d6", "3d8", "4d10", "5d12"],
   // avg n = 2, 7, 13, 22, 32
   max: [4, 12, 24, 40, 60],
   safetyM: [1, 3, 6, 11, 16]
 }
 
-const Size = (_hash,gen)=>{
-  //based on generation 
-  let _size = weighted(keccak256(["bytes32", "string"], [_hash, "size"]), ...SIZE.gen[gen])
-  //number of regions 
-  let _nR = dice(keccak256(["bytes32", "string"], [_hash, "nRegions"]), SIZE.regions[_size]).sum
-  //features 
-  let _nF = 2 + dice(keccak256(["bytes32", "string"], [_hash, "nFeatures"]), SIZE.regions[_size]).sum
+const nRegionsFeatures = (_hash, _size) => {
+  let _nF = 0, _nR = 0;
+
+  if(_size == 0) {
+    _nR = 1
+    _nF = 3
+  }
+  else {
+    //number of regions - always use a d8
+    _nR = dice(keccak256(["bytes32", "string"], [_hash, "nRegions"]), _size+"d8").sum
+    //number of features - always use a d6
+    _nF = 2 + dice(keccak256(["bytes32", "string"], [_hash, "nFeatures"]), _size+"d6").sum
+  }
+  
   return {
-    _size,
     _nR,
     _nF
   }
@@ -61,10 +70,10 @@ const ALIGNMENT = {
   text: ["evil", "chaotic", "neutral", "lawful", "good"]
 }
 const SAFETY = {
-  id: [0, 1, 1, 2, 2, 2, 2, 2, 2, 3],
-  text: ["safe", "unsafe", "dangerous", "perilous"],
+  id: [3,3,3,3,3,3,2,2,1,1,1,1,1,1,1,0,0,0,0,0,0,0],
+  text: ["perilous", "dangerous", "unsafe", "safe"],
   stepCost: [5000, 4000, 2500, 0],
-  alignmentMod: [3, 5, 0, -5, -3]
+  alignmentMod: [8, 10, 5, 0, 2]
 }
 
 const Safety = (seed)=>{
@@ -73,14 +82,12 @@ const Safety = (seed)=>{
 
   //next safety based on alignment 
   let safeHash = keccak256(["bytes32", "string"], [seed, "safety"])
-  let safeRoll = 1 + integer(safeHash, 12) + SAFETY.alignmentMod[_alignment]
-  let _safety = safeRoll < 1 ? 0 : safeRoll > 10 ? 3 : SAFETY.id[safeRoll - 1]
-  let _safeMod = 3 - _safety
+  let safeRoll = integer(safeHash, 12) + SAFETY.alignmentMod[_alignment]
+  let _safety = SAFETY.id[safeRoll]
 
   return {
     _alignment,
     _safety,
-    _safeMod
   }
 }
 
@@ -209,11 +216,11 @@ const Features = {
     let _hash = keccak256(["bytes32", "string", "uint256"], [seed, "feature", i])
 
     //get safety
-    let {_alignment, _safety, _safeMod} = Safety(seed)
+    let {_alignment, _safety} = Safety(seed)
 
     //roll 
     //first two are set 
-    let r = i < 2 ? [1, 5 + integer(_hash, 7)][i] : 1 + integer(_hash, 12) + _safeMod
+    let r = i < 2 ? [1, 5 + integer(_hash, 7)][i] : 1 + integer(_hash, 12) + _safety
 
     let what = ""
       , fHash = "";
@@ -354,10 +361,10 @@ const ShardFactory = (app)=>{
   app.shard = {
     resource: RESOURCE,
     feature: Features,
-    size: Size,
     safety: Safety,
     terrain: ClimateTerrain,
-    culture
+    culture,
+    cosmic : {}
   }
   let all = app.shard.all = {}
 
@@ -377,14 +384,15 @@ const ShardFactory = (app)=>{
       //is owned
       this.isOwned = opts.isOwned || false
 
-      //alignment
-      let {_alignment, _safety} = Safety(hash)
-
-      //Active safety dependent upon using patrols 
-      let _safeMod = 3 - _safety
+      //cosmic 
+      this._cosmic = opts.cosmic || 0
 
       //size 
-      let {_size, _nR, _nF} = Size(hash, gen)
+      let _size = gen == 0 ? 1 : 0
+      let {sz, m} = this.cosmicSize
+      _size = sz > _size ? sz : _size
+
+      let {_nR, _nF} = nRegionsFeatures(hash, _size)
       let _features = Array.from({
         length: _nF
       }, (v,i)=>{
@@ -397,6 +405,9 @@ const ShardFactory = (app)=>{
         seed: hash,
         size: _nR
       })
+
+      //alignment
+      let {_alignment, _safety} = Safety(hash)
 
       //climate and terrain 
       let {_climate, _terrain} = ClimateTerrain(hash, gen)
@@ -447,6 +458,60 @@ const ShardFactory = (app)=>{
         "Inhabitants": [],
         "Settlements": []
       })
+    }
+    set owned (bool) {
+      this.isOwned = bool
+    }
+    //set cosmic and update size as required 
+    set cosmic (val) {
+      this._cosmic = val 
+
+      let {sz, m} = this.cosmicSize
+      //update size as required 
+      if(sz > this._size){
+        this._size = sz   
+        let {_nR, _nF} = nRegionsFeatures(this.hash, this._size)
+        this._features = Array.from({
+          length: _nF
+        }, (v,i)=>{
+          return Features.byIndex(hash, i)
+        }
+        )
+
+        //Hex layout 
+        this._hex = new app.hex.Hex({
+          seed: this.hash,
+          size: _nR
+        })
+
+        //now do terrains
+        let {majT, minT} = generateTerrain(this.hash, this._terrain, _nR, this.gen)
+        this._hex._majT = majT.slice()
+        this._hex._minT = minT.slice()
+      }
+    }
+    get cosmicSize () {
+      let cosmic = this._cosmic
+      let {byCosmic} = SIZE
+      let l = byCosmic.length, sz = 0; 
+      
+      if(cosmic >= byCosmic[l-1]){
+        sz = l;
+      }
+      else {
+        for(let i = 0; i < l; i++){
+          if(cosmic < byCosmic[i]){
+            sz = i;
+            break;
+          }
+        } 
+      }
+
+      let max = sz==l ? byCosmic[l-1]*2 : byCosmic[sz];
+      let min = sz==0 ? 0 : byCosmic[sz-1];
+      let m =  100 * (cosmic-min) / (max-min);
+      
+      return {sz,m} 
     }
     /*
       @param ri - index of region to focus on

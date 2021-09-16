@@ -78,7 +78,7 @@ const UI = (app)=>{
 
     getGenAddress() {
       let {NFT, gen} = this.state
-      return NFT[gen] ? NFT[gen][3] : ""
+      return NFT[gen] ? NFT[gen].address : ""
     }
 
     shortAddress() {
@@ -152,7 +152,7 @@ const UI = (app)=>{
       if (reveal != 0 && block - reveal < 255) {
         button = html`<button type="button" class="btn btn-success btn-block" onClick=${()=>this.commit(id)} disabled=${block - reveal < 7}>Claim a ${id} Shard [gas only]</button>`
       } else {
-        button = html`<button type="button" class="btn btn-info btn-block" onClick=${()=>this.commit(id)}>Commit to Claim a ${id} Shard [gas only]</button>`
+        button = html`<button type="button" class="btn btn-info btn-block" onClick=${()=>this.commit(id)}>Commit to Claim a ${id} Shard [2 tx, gas only]</button>`
       }
       return button
     }
@@ -186,7 +186,7 @@ const UI = (app)=>{
       let perShard = (key)=>{
         let shard = app.shard.byHash(key)
         let {gen, id, title, _721, _hex} = shard
-        let cosmic = NFT["Gen" + gen] ? NFT["Gen" + gen][2].find(nft=>nft.id == id).cosmic : 0
+        let cosmic = NFT["Gen" + gen] ? NFT["Gen" + gen].owned.find(nft=>nft.id == id).cosmic : 0
 
         return html`
             <div class="row">
@@ -238,12 +238,16 @@ const UI = (app)=>{
                 </p>
               ` : ""}
               <div class="row">
+                ${["FTM"].includes(network) ? html`
                 <div class="col">
                     ${this.commitRevealButton()}
                 </div>
+                ` : ""}
+                ${Gen0 ? html`
                 <div class="col">
-                    ${Gen0 ? html`<button type="button" class="btn btn-success btn-block" onClick=${()=>this.buy('Gen0')}>Buy a Gen0 Shard [${Gen0[4]} ${network}] [${Gen0[0] - Gen0[1]} remain]</button>` : ""} 
+                    <button type="button" class="btn btn-success btn-block" onClick=${()=>this.buy('Gen0')}>Buy a Gen0 Shard [${Gen0.cost} ${network}]</button>
                 </div>
+                ` : ""}
               </div>
               ${this.ownedShards()}
               <div class="input-group mb-2">
@@ -256,7 +260,7 @@ const UI = (app)=>{
                 <div class="input-group-prepend">
                   <span class="input-group-text">#</span>
                 </div>
-                <input type="number" class="form-control" min="0" max=${NFT[gen] ? NFT[gen][1] - 1 : 0} value=${this.state.sid} onChange=${(e)=>this.setSelect("sid", e)} />
+                <input type="number" class="form-control" min="0" value=${this.state.sid} onChange=${(e)=>this.setSelect("sid", e)} />
                 <div class="input-group-append">
                   <button class="btn btn-outline-success" type="button" onClick=${()=>this.setShard(this.getGenAddress(), this.state.sid)}>View</button>
                 </div>
