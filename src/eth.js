@@ -18,6 +18,12 @@ if(window.ethereum) {
   // what Metamask injects as window.ethereum into each page
   provider = new ethers.providers.Web3Provider(window.ethereum, "any");
   let {chainId} = await provider.getNetwork()
+
+  //change to Fantom 
+  if(chainId != 250) {
+    await ethereum.request({ method: 'wallet_switchEthereumChain', params:[{chainId: '0xFA'}]});
+  }
+
   reader =  NETRPC[chainId] ? new ethers.providers.JsonRpcProvider(NETRPC[chainId]) : ethers.getDefaultProvider(chainId)
   
   // Prompt user for account connections
