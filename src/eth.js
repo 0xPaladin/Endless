@@ -24,7 +24,7 @@ if(window.ethereum) {
     await ethereum.request({ method: 'wallet_switchEthereumChain', params:[{chainId: '0xFA'}]});
   }
 
-  reader =  NETRPC[chainId] ? new ethers.providers.JsonRpcProvider(NETRPC[chainId]) : ethers.getDefaultProvider(chainId)
+  reader =  NETRPC[chainId] ? new ethers.providers.JsonRpcProvider(NETRPC[chainId]) : ethers.getDefaultProvider(chainId) ? ethers.getDefaultProvider(chainId) : null 
   
   // Prompt user for account connections
   await provider.send("eth_requestAccounts", []);
@@ -64,10 +64,15 @@ const CONTRACTS = {
     "Stats" : "0xeEd019D0726e415526804fb3105a98323911E494", 
     "ShardCosmicClaim" : "0xAF63B2Dd717CEC099d262680dDe7692B48Ab9b34",
     "ERC721Utilities" : "0xf8f2ea668F996B45f9062BbA0FF6a5Eb31290eA5",
-    "TransferCosmic" : "0x208C03B576F3bd8142A4de897C3D309176e09D93"
+    "TransferCosmic" : "0x208C03B576F3bd8142A4de897C3D309176e09D93",
+    "FeatureClaimFixed.FC1" : "0x04777919fd8868F2ECEA4761201966e360ea21E6",
+    "FeatureClaimFixed.FC2" : "0x2A9F1f86Ae900dB9B63cfbb0F384b62aA1Df9a44",
+    "FeatureClaimFixed.FC3" : "0x3c362BAcc5E5e8e3f1da9716D8BcA326c8e29103",
+    "FeatureClaimFixed.FC4" : "0xbA5B7A557E08E5A7175128B066F6A14ED34f68DB",
+    "FeatureLastClaimPoll" : "0xeFD84bbB642803f47C8E6dA48aD78Fe2576481Ec"
   }
 }
-const READONLY = ["ERC721FullNoBurn.Gen0","ERC721FullNoBurn.GenE","ERC721FullNoBurn.GenR","Stats","ERC721CommitReveal","ERC721Utilities"]
+const READONLY = ["ERC721FullNoBurn.Gen0","ERC721FullNoBurn.GenE","ERC721FullNoBurn.GenR","Stats","ERC721CommitReveal","ERC721Utilities","FeatureLastClaimPoll"]
 
 //id,name,nFixed,cost
 const NETDATA = {

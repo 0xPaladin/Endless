@@ -78,11 +78,10 @@ const SAFETY = {
 
 const Safety = (seed)=>{
   //first alignment 
-  let _alignment = pickone(keccak256(["bytes32", "string"], [seed, "alignment"]), ALIGNMENT.id)
+  let _alignment = ALIGNMENT.id[integer(keccak256(["bytes32", "string"], [seed, "alignment"]), 12)]
 
   //next safety based on alignment 
-  let safeHash = keccak256(["bytes32", "string"], [seed, "safety"])
-  let safeRoll = integer(safeHash, 12) + SAFETY.alignmentMod[_alignment]
+  let safeRoll = SAFETY.alignmentMod[_alignment] + integer(keccak256(["bytes32", "string"], [seed, "safety"]), 12) 
   let _safety = SAFETY.id[safeRoll]
 
   return {
@@ -96,14 +95,16 @@ const Safety = (seed)=>{
 */
 
 const FEATURES = {
-  what: ["creature", "hazard", "obstacle", "area", "named place", "site", "faction presence", "settlement"]
+  what: ["creature","hazard","obstacle","area","dungeon","lair","ruin","outpost","landmark","resource","faction","settlement"],
+  steps : [40,50,60,75,79,83,87,91,95,100,110]
 }
 
 const RESOURCE = ["game/hide/fur", "timber/clay", "herb/spice/dye", "copper/tin/iron", "silver/gold/gems", "magical"]
 
 //dungeons ["caves/caverns", "ruined settlement", "prison", "mine", "crypt/tomb", "lair/den/hideout", "stronghold/fortress", "temple/sanctuary", "archive/laboratory", "origin unknown"]
 const SITES = {
-  "what": [["dungeon", "lair", "ruin", "outpost", "landmark", "resource"], [2, 2, 2, 2, 2, 2]],
+  "dungeonId" : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 9],
+  "dungeon" : ["caves/caverns", "ruined settlement", "prison", "mine", "crypt/tomb", "lair/den/hideout", "stronghold/fortress", "temple/sanctuary", "archive/laboratory", "origin unknown"], 
   "lair": [["inhabited ruin", "inhabited cave", "den/burrow/hideout", "hive/aerie/nest", "hovel/hut/encampment", "farmstead/homestead"], [3, 3, 2, 1, 1, 2]],
   "lair.d": [1, 0, 5, 5, 1, 1],
   "ruin": [["tomb/crypt/necropolis", "shrine/temple", "mine/quarry/excavation", "shrine/temple", "ancient outpost", "ancient settlement"], [2, 2, 2, 2, 2, 2]],
@@ -133,7 +134,7 @@ const FACTIONS = {
 }
 
 const Features = {
-  hazard(hash) {
+  hazard(hash, parent) {
     let uHash = keccak256(["bytes32", "string"], [hash, "unnatural"])
     let unnatural = integer(uHash, 12) == 0 ? weighted(uHash, ...HAZARD.unnatural) : ""
     unnatural = TableGen[unnatural] ? TableGen[unnatural](uHash) : ""
@@ -146,7 +147,7 @@ const Features = {
       what: [unnatural, natural].join(" ")
     }
   },
-  obstacle(hash) {
+  obstacle(hash, parent) {
     let uHash = keccak256(["bytes32", "string"], [hash, "unnatural"])
     let unnatural = integer(uHash, 12) == 0 ? weighted(uHash, ...OBSTACLE.unnatural) : ""
     unnatural = TableGen[unnatural] ? TableGen[unnatural](uHash) : ""
@@ -159,7 +160,7 @@ const Features = {
       what: [unnatural, natural].join(" ")
     }
   },
-  area(hash) {
+  area(hash, parent) {
     let uHash = keccak256(["bytes32", "string"], [hash, "unnatural"])
     let unnatural = integer(uHash, 12) == 0 ? weighted(uHash, ...AREA.unnatural) : ""
     unnatural = TableGen[unnatural] ? TableGen[unnatural](uHash) : ""
@@ -173,18 +174,40 @@ const Features = {
       what: [unnatural, natural].join(" ")
     }
   },
-  site(hash) {
-    let what = weighted(hash, ...SITES.what)
-    let site = what == "dungeon" ? "dungeon" : weighted(keccak256(["bytes32", "string"], [hash, "site-sub"]), ...SITES[what])
-    let gen = ["dungeon", "lair", "ruin", "outpost"].includes(what) ? keccak256(["bytes32", "string"], [hash, "dungeon"]) : null
-    let type = gen && SITES[what + ".d"] ? SITES[what + ".d"][SITES[what][0].indexOf(site)] : null
-
+  dungeon (hash, parent) {
+    let type = pickone(hash, SITES.dungeonId)
     return {
-      what,
-      site,
-      gen,
-      type
+      type,
+      what : SITES.dungeon[type]
     }
+ },
+  lair (hash, parent) {
+    let weights = SITES.lair
+    let what = weighted(hash, ...weights)
+    let type = weights[0].indexOf(what)
+
+    return { type, what }
+  },
+  ruin (hash, parent) {
+    let weights = SITES.ruin
+    let what = weighted(hash, ...weights)
+    let type = weights[0].indexOf(what)
+
+    return { type, what }
+  },
+  landmark (hash, parent) {
+    let weights = SITES.landmark
+    let what = weighted(hash, ...weights)
+    let type = weights[0].indexOf(what)
+
+    return { type, what }
+  },
+  resource (hash, parent) {
+    let weights = SITES.resource
+    let what = weighted(hash, ...weights)
+    let type = weights[0].indexOf(what)
+
+    return { type, what }
   },
   faction(hash, parent) {
     let typeRoll = 1 + integer(hash, 12)
@@ -212,38 +235,31 @@ const Features = {
       baseSkills: _baseSkills.map(id=>SKILLGROUPS.text[id])
     }
   },
-  byIndex(seed, i) {
-    let _hash = keccak256(["bytes32", "string", "uint256"], [seed, "feature", i])
+  byIndex(seed, fi) {
+    let _hash = keccak256(["bytes32", "string", "uint256"], [seed, "feature", fi])
 
     //get safety
     let {_alignment, _safety} = Safety(seed)
 
     //roll 
     //first two are set 
-    let r = i < 2 ? [1, 5 + integer(_hash, 7)][i] : 1 + integer(_hash, 12) + _safety
+    let r = fi < 2 ? [1,65][fi] : 1 + integer(_hash, 120) + (_safety * 10)
 
-    let what = ""
-      , fHash = "";
-    if (r <= 4) {
-      what = "creature"
-    } else if (r == 5) {
-      what = "hazard"
-    } else if (r == 6) {
-      what = "obstacle"
-    } else if (r <= 8) {
-      what = "area"
-    } else if (r <= 11) {
-      what = "site"
-    } else if (r == 12) {
-      what = "faction"
-    } else {
-      what = "settlement"
+    //start at max 
+    let what = 11;
+    for(let i = 0; i < 11; i++){
+      if(r <= FEATURES.steps[i]){
+        what = i;
+        break;
+      }
     }
-    fHash = keccak256(["bytes32", "string"], [_hash, what])
+    let txt = FEATURES.what[what]
+    let fHash = keccak256(["bytes32", "string"], [_hash, txt])
 
     return {
-      i,
-      what,
+      i : fi,
+      wi : what,
+      what : txt,
       hash: fHash,
       parent: seed
     }
@@ -354,6 +370,8 @@ const culture = (seed)=>{
 }
 
 const ShardFactory = (app)=>{
+  let sig = ()=>app.eth.contracts.sig;
+
   let {d3} = app
   let canvas = d3.select("#display"), bbox, scale;
 
@@ -375,6 +393,9 @@ const ShardFactory = (app)=>{
     constructor(_721, id=chance.natural(), opts={}) {
       this._721 = _721
       this.id = id 
+
+      let nftid = keccak256(["address", "uint256"], [_721, id])
+
       //get gen 
       let gen = this.gen = GEN["721"][_721] || 0
       //hash 
@@ -411,6 +432,7 @@ const ShardFactory = (app)=>{
 
       //climate and terrain 
       let {_climate, _terrain} = ClimateTerrain(hash, gen)
+      this._terrain = _terrain
       let tText = "deepWater" == _terrain ? "Deep Water" : "shallowWater" == _terrain ? "Shallow Water" : _terrain
 
       //now do terrains
@@ -440,6 +462,12 @@ const ShardFactory = (app)=>{
     }
     get features() {
       let category = {
+        "dungeon": "Sites",
+        "lair": "Sites",
+        "ruin": "Sites",
+        "outpost": "Settlements",
+        "landmark": "Sites",
+        "resource": "Sites",
         "site": "Sites",
         "hazard": "Sites",
         "obstacle": "Sites",
@@ -459,6 +487,18 @@ const ShardFactory = (app)=>{
         "Settlements": []
       })
     }
+    get featureClaimPoll () {
+      //pull contracts 
+      let C = sig() 
+
+      let id = this.nftid 
+      
+      //check what features have claims - then map address of those contracts  
+      let claims = this._features.filter(f => C["FC"+f.wi])
+        .map(f => C["FC"+f.wi].address)
+      
+      return {id,claims}
+    }
     set owned (bool) {
       this.isOwned = bool
     }
@@ -474,7 +514,7 @@ const ShardFactory = (app)=>{
         this._features = Array.from({
           length: _nF
         }, (v,i)=>{
-          return Features.byIndex(hash, i)
+          return Features.byIndex(this.hash, i)
         }
         )
 
@@ -592,6 +632,10 @@ const ShardFactory = (app)=>{
     constructor() {
       super();
     }
+    // Lifecycle: Called whenever our component is created
+    componentDidMount() {
+      app.UI.Shard = this
+    }
     render({shard}, state) {
       let sites = shard.features ? shard.features.Sites : []
       let ppl = shard.features ? shard.features.Inhabitants : []
@@ -680,23 +724,71 @@ const ShardFactory = (app)=>{
     return html`
       <div class="col rounded bg-light p-2 m-1">
         <h4 class="m-0">Sites</h4>
-        <div>
-          ${sites.map(site=> html`<${UISite} data=${site}><//>`)}
-        </div>
+        ${sites.map(site=> html`<${UISite} data=${site}><//>`)}
       </div>
     `;
   }
+
+  //submit claim 
+  const EVMSiteClaim = (nft, id, fi, type) => {
+    let C = sig()["FC"+type]
+
+      //claim it - handle tx notification
+      //claim (address nft, uint256 id, uint256 fi) 
+      C.claim(nft, id, fi).then(async tx=>{
+        let {hash} = tx
+
+        //log and notification
+        let text = "Claim Submitted: " + hash
+        console.log(text)
+        app.simpleNotify(text, "info", "center")
+
+        tx.wait(1).then(res=>{
+          let text = "Claim Confirmed: " + res.blockNumber
+          console.log(text)
+          app.simpleNotify(text, "info", "center")
+        }
+        )
+      }
+      )
+  }
+
+  const SiteClaim = (data) => {
+    let {_721, id} = app.UI.Shard.props.shard
+
+    let n = new Noty({
+      theme: "relax",
+      text : "Do you want to claim?",
+      type:"alert",
+      layout:"center",
+      timeout:0,
+      buttons: [
+        Noty.button('YES', 'btn btn-success mx-2', function () {
+            //submit claim 
+            EVMSiteClaim(_721, id, data.i, data.wi)
+            n.close();
+        }),
+
+        Noty.button('NO', 'btn btn-light', function () {
+            n.close();
+        })
+      ]
+    })
+    n.show()
+  }
+
+  //what may be claimed 
+  const MAYCLAIM = [1,2,3,4] 
    
   //individual site UI
   const UISite = ({data})=>{
-    let {what, hash, parent} = data
+    let shard = app.UI.Shard.props.shard
+    let {wi, what, hash, parent} = data
     let site = Features[what](hash, parent)
+    let _mayClaim = MAYCLAIM.includes(wi) && shard.isOwned
 
-    if (['area', 'hazard', 'obstacle'].includes(what)) {
-      return html`<div>${Capitalize(what)}, ${site.what}</div>`
-    } else {
-      return html`<div>${site.what == 'dungeon' ? Capitalize(site.what) : Capitalize(site.what) + ': ' + site.site}</div>`
-    }
+    // 
+    return html`<div><span class=${_mayClaim ? 'link' : ''} onClick=${()=>SiteClaim(data)}>${Capitalize(what)}</span>, ${site.what}</div>`
   }
 
   

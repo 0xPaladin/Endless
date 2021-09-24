@@ -6,5 +6,7 @@ import {ShardCosmicClaim} from "./ShardCosmicClaim.abi.js"
 import {ERC721CommitReveal} from "./ERC721CommitReveal.abi.js"
 import {ERC721Utilities} from "./ERC721Utilities.abi.js"
 import {TransferCosmic} from "./TransferCosmic.abi.js"
+import {FeatureClaimFixed} from "./FeatureClaimFixed.abi.js"
+import {FeatureLastClaimPoll} from "./FeatureLastClaimPoll.abi.js"
 
-export {ERC721Buyer, ERC721FullNoBurn, ERC721CommitReveal, Stats, ShardCosmicClaim, ERC721Utilities, TransferCosmic}
+export {ERC721Buyer, ERC721FullNoBurn, ERC721CommitReveal, Stats, ShardCosmicClaim, ERC721Utilities, TransferCosmic, FeatureClaimFixed, FeatureLastClaimPoll}
