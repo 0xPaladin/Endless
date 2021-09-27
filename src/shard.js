@@ -615,6 +615,7 @@ const ShardFactory = (app)=>{
   }
 
   const byContract = app.shard.byContract = (_721, id, opts) => {
+    id=Number(id)
     //hash 
     let key = keccak256(["string", "address", "uint256"], [GEN.base, _721, id])
     return all[key] || add(_721, id, key, opts)

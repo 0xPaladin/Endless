@@ -5,6 +5,22 @@ const UI = (app)=>{
   let sig = ()=>app.eth.contracts.sig;
   let {h, Component, render, html, Shard} = app.UI;
 
+  /*
+    Inhabitants
+  */
+  function About() {
+    return html`
+      <p class="rounded bg-light px-2" align="left">Countless worlds were shattered at the end of the last cosmic war. 
+        Saved from total destruction, these shards now float in a dimension known as the Outlands.
+      </p>
+      <p class="rounded bg-light px-2" align="left">Shards vary in size, shape, climate, terrain, population, ruins and much more. 
+        Part game, part generative art - this site let's you claim randomly generated shards.  
+        Each is represented by a unique 64 character hexadecimal string that the site 
+        uses to generate the same shard every time.
+      </p>
+    `;
+  }
+
   class Transfer extends Component {
     constructor() {
       super();
@@ -160,26 +176,23 @@ const UI = (app)=>{
     }
 
     //buy the nft 
-    commit(id) {
-      let reveal = this.state.reveal
-      let {address} = sig()[id]
-      let what = reveal != 0 ? "reveal" : "commit"
-      let C = sig().ERC721CommitReveal
+    shardClaim() {
+      let C = sig().ERC721FreeClaim
       let overrides = {
-        gasLimit: reveal != 0 ? "500000" : "200000"
+        gasLimit: "500000"
       }
 
       //buy it - handle tx notification
-      C[what](address, overrides).then(async tx=>{
+      C.claim(overrides).then(async tx=>{
         let {hash} = tx
 
         //log and notification
-        let text = [what, id, "submitted:", hash].join(" ")
+        let text = ["Shard Claim submitted:", hash].join(" ")
         console.log(text)
         app.simpleNotify(text, "info", "center")
 
         tx.wait(1).then(res=>{
-          let text = [what, id, "confirmed:", res.blockNumber].join(" ")
+          let text = ["Shard Claim confirmed:", res.blockNumber].join(" ")
           console.log(text)
           app.simpleNotify(text, "info", "center")
         }
@@ -214,20 +227,6 @@ const UI = (app)=>{
         )
       }
       )
-    }
-
-    //create a buy button for every NFT 
-    commitRevealButton() {
-      let id = "GenE"
-      let {network, reveal, block} = this.state
-
-      let button;
-      if (reveal != 0 && block - reveal < 255) {
-        button = html`<button type="button" class="btn btn-success btn-block" onClick=${()=>this.commit(id)} disabled=${block - reveal < 7}>Claim a ${id} Shard [gas only]</button>`
-      } else {
-        button = html`<button type="button" class="btn btn-info btn-block" onClick=${()=>this.commit(id)}>Commit to Claim a ${id} Shard [2 tx, gas only]</button>`
-      }
-      return button
     }
 
     claimCosmic(_721, id) {
@@ -314,47 +313,48 @@ const UI = (app)=>{
               </div>
             </div>
             <div class="container" align="center">
-              <p class="rounded bg-light px-2" align="left">Countless worlds were shattered at the end of the last cosmic war. 
-                Saved from total destruction, these shards now float in a dimension known as 
-                the Outlands.
-              </p>
-              <p class="rounded bg-light px-2" align="left">Shards vary in size, shape, climate, terrain, population, ruins and much more. 
-                Part game, part generative art - this site let's you claim randomly generated shards.  
-                Each is represented by a unique 64 character hexadecimal string that the site 
-                uses to generate the same shard every time.
-              </p>
               ${!["FTM", "gETH"].includes(network) ? html`
                 <p class="rounded bg-danger text-white p-2" align="center">
                   Endless is not available on this chain. Please change to the Fantom Network.
                 </p>
               ` : ""}
-              <div class="row">
-                ${["FTM"].includes(network) ? html`
-                <div class="col">
-                    ${this.commitRevealButton()}
-                </div>
-                ` : ""}
-                ${Gen0 ? html`
-                <div class="col">
-                    <button type="button" class="btn btn-success btn-block" onClick=${()=>this.buy('Gen0')}>Buy a Gen0 Shard [${Gen0.cost} ${network}]</button>
-                </div>
-                ` : ""}
+              <div align="center">
+                <button class="btn btn-light m-1" type="button" data-toggle="collapse" data-target="#viewShards">View Shards</button>
+                <button class="btn btn-light m-1" type="button" data-toggle="collapse" data-target="#myShards">My Shards</button>
+                <button class="btn btn-light m-1" type="button" data-toggle="collapse" data-target="#about">About</button>
               </div>
-              ${this.ownedShards()}
-              <div class="input-group mb-2">
-                <div class="input-group-prepend">
-                  <span class="input-group-text">View Any Shard</span>
+              <div class="accordion" id="accordionMain">
+                <div id="about" class="collapse" data-parent="#accordionMain">${About()}</div>
+                <div id="myShards" class="collapse" data-parent="#accordionMain">
+                  ${["FTM"].includes(network) ? html`
+                  <div>
+                      <button type="button" class="btn btn-info btn-block" onClick=${()=>this.shardClaim()}>Commit to Claim a Shard [free, gas only]</button>
+                  </div>
+                  ` : ""}
+                  ${this.ownedShards()}
                 </div>
-                <select class="custom-select" value=${this.state.gen} onChange=${(e)=>this.setSelect("gen", e)}>
-                  ${Object.keys(NFT).map(id=>html`<option value=${id}>${id}</option>`)}
-                </select>
-                <div class="input-group-prepend">
-                  <span class="input-group-text">#</span>
-                </div>
-                <input type="number" class="form-control" min="0" value=${this.state.sid} onChange=${(e)=>this.setSelect("sid", e)} />
-                <div class="input-group-append">
-                  <button class="btn btn-outline-success" type="button" onClick=${()=>this.setShard(this.getGenAddress(), this.state.sid)}>View</button>
-                </div>
+                <div class="collapse" id="viewShards" data-parent="#accordionMain">
+                  ${["FTM"].includes(network) ? html`
+                    <div>
+                        <button type="button" class="btn btn-info btn-block" onClick=${()=>this.shardClaim()}>Commit to Claim a Shard [free, gas only]</button>
+                    </div>
+                    ` : ""}
+                    <div class="input-group mb-2">
+                      <div class="input-group-prepend">
+                        <span class="input-group-text">View Any Shard</span>
+                      </div>
+                      <select class="custom-select" value=${this.state.gen} onChange=${(e)=>this.setSelect("gen", e)}>
+                        ${Object.keys(NFT).map(id=>html`<option value=${id}>${id}</option>`)}
+                      </select>
+                      <div class="input-group-prepend">
+                        <span class="input-group-text">#</span>
+                      </div>
+                      <input type="number" class="form-control" min="0" value=${this.state.sid} onInput=${(e)=>this.setSelect("sid", e)} />
+                      <div class="input-group-append">
+                        <button class="btn btn-outline-success" type="button" onClick=${()=>this.setShard(this.getGenAddress(), this.state.sid)}>View</button>
+                      </div>
+                    </div>
+                  </div>
               </div>
               <${Shard} shard=${shard}><//>
             </div>

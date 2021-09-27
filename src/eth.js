@@ -60,7 +60,7 @@ const CONTRACTS = {
     "ERC721FullNoBurn.Gen0" : "0x8dB24cD8451B133115588ff1350ca47aefE2CB8c",
     "ERC721FullNoBurn.GenE" : "0x693eD718D4b4420817e0A2e6e606b888DCbDb39B",
     "ERC721FullNoBurn.GenR" : "0xce761D788DF608BD21bdd59d6f4B54b2e27F25Bb",
-    "ERC721CommitReveal" : "0xD124F097093F751E1620AA32f7f9A4B344eF9Be1", 
+    "ERC721FreeClaim" : "0xf13802CA09a9528cf8E3C48768E7D3c9EB48191f", 
     "Stats" : "0xeEd019D0726e415526804fb3105a98323911E494", 
     "ShardCosmicClaim" : "0xAF63B2Dd717CEC099d262680dDe7692B48Ab9b34",
     "ERC721Utilities" : "0xf8f2ea668F996B45f9062BbA0FF6a5Eb31290eA5",
@@ -72,7 +72,7 @@ const CONTRACTS = {
     "FeatureLastClaimPoll" : "0xeFD84bbB642803f47C8E6dA48aD78Fe2576481Ec"
   }
 }
-const READONLY = ["ERC721FullNoBurn.Gen0","ERC721FullNoBurn.GenE","ERC721FullNoBurn.GenR","Stats","ERC721CommitReveal","ERC721Utilities","FeatureLastClaimPoll"]
+const READONLY = ["ERC721FullNoBurn.Gen0","ERC721FullNoBurn.GenE","ERC721FullNoBurn.GenR","Stats","ERC721Utilities","FeatureLastClaimPoll"]
 
 //id,name,nFixed,cost
 const NETDATA = {
@@ -125,17 +125,6 @@ const EVMManager = async (app) => {
   let {chainId, name} = await provider.getNetwork()
   app.net = {chainId, name}
   console.log(app.net)
-
-  //get commits
-  const checkCommits = (address) => {
-    if(!CONTRACTS[chainId].ERC721CommitReveal)
-      return
-
-    read().ERC721CommitReveal.activeCommits(address, CONTRACTS[chainId]["ERC721FullNoBurn.GenE"]).then(res => {
-      let reveal = res.toNumber()
-      app.UI.main.setState({reveal})
-    })
-  }
 
   const checkRarity = async () => {
     let ids = {}
@@ -226,9 +215,6 @@ const EVMManager = async (app) => {
     //check if the chain exists
     if(!CONTRACTS[chainId])
       return
-    
-    //look for commits
-    checkCommits(address)
 
     //check nfts 
     Object.keys(NFTIDS[chainId]).forEach(id => checkNFTBalance(id))
