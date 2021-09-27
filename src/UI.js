@@ -156,6 +156,11 @@ const UI = (app)=>{
       });
       shard.canvasDisplay(0, 0)
       console.log(shard)
+
+      if(app.eth.checkShardStats)
+      {
+        app.eth.checkShardStats(shard)
+      }
     }
 
     genShard() {

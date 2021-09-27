@@ -1,5 +1,7 @@
 //ethers js 
 import {ethers} from "../lib/ethers-5.0.min.js"
+//ether Random js 
+import {keccak256} from "./ETHRandom.js"
 //abi 
 import * as ABI from "../solidity/abi.js"
 
@@ -68,8 +70,10 @@ const CONTRACTS = {
     "FeatureClaimFixed.FC1" : "0x04777919fd8868F2ECEA4761201966e360ea21E6",
     "FeatureClaimFixed.FC2" : "0x2A9F1f86Ae900dB9B63cfbb0F384b62aA1Df9a44",
     "FeatureClaimFixed.FC3" : "0x3c362BAcc5E5e8e3f1da9716D8BcA326c8e29103",
-    "FeatureClaimFixed.FC4" : "0xbA5B7A557E08E5A7175128B066F6A14ED34f68DB",
-    "FeatureLastClaimPoll" : "0xeFD84bbB642803f47C8E6dA48aD78Fe2576481Ec"
+    "FeatureClaimFixed.FC4" : "0xE424980979A2f75251692A05Eb6d2c7AA457f009",
+    "FeatureClaimFixed.FC6" : "0x64b7A22C48674D87cE77738CFD5B4bCB9a12fAcE",
+    "FeatureClaimFixed.FC8" : "0x215989c299FbE62C903894021C52555d4475182e",
+    "FeatureLastClaimPoll" : "0x950CF55E8826d41097a0bCbBd30DE113CEa9cb17"
   }
 }
 const READONLY = ["ERC721FullNoBurn.Gen0","ERC721FullNoBurn.GenE","ERC721FullNoBurn.GenR","Stats","ERC721Utilities","FeatureLastClaimPoll"]
@@ -147,6 +151,43 @@ const EVMManager = async (app) => {
 
     return Object.keys(ids).map(Number)
   }
+
+  const checkShardClaims = async (shard) => {
+    let {_721, id} = shard
+    let C = read().FeatureLastClaimPoll
+
+    //lastClaimBatch (bytes32[] calldata ids, address[] calldata claims)
+    let _i = [], ids = [], claims=[];
+    //collect ids and claim addresses
+    shard._features.filter(f => CONTRACTS[chainId]["FeatureClaimFixed.FC"+f.wi])
+      .forEach(f => {
+        _i.push(f.i)
+        //keccak256(abi.encode(nft, id, fi))
+        ids.push(keccak256(["address","uint256","uint256"], [_721,id,f.i]))
+        claims.push(CONTRACTS[chainId]["FeatureClaimFixed.FC"+f.wi])
+      })      
+    
+    //call chain data 
+    let times = (await C.lastClaimBatch(ids,claims)).map(bn => bn.toNumber())
+    //set times
+    shard.featureClaimTimes = {_i,times}
+  }
+
+  const checkShardStats = async (shard) => {
+    //get claim times 
+    checkShardClaims(shard)
+
+    let {_721, id} = shard
+    let _stats = CONTRACTS[chainId].Stats
+    let C = read().ERC721Utilities.getBatchOfStats
+
+    let statIds = ["SRD.DMD","SRD.RLC0","SRD.WAY"] 
+
+    //getBatchOfStats (address stats, string[] calldata statIds, address nft, uint256 id) 
+    let vals = (await C(_stats,statIds,_721,id)).map(bn => bn.toNumber())
+    shard.stats = {ids: statIds, vals}
+  }
+  app.eth.checkShardStats = checkShardStats
 
   //if there is a nft balance poll for data 
   const checkNFTIds = async (id, nft) => {

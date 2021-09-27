@@ -455,10 +455,21 @@ const ShardFactory = (app)=>{
       this.sizeMax = SIZE.max[_size]
       this._features = _features
       this._culture = culture(this.seed)
+
+      this._stats = {}
     }
     get title() {
       let {terrain, climate, size, alignment, safety} = this
       return [terrain, climate, size, alignment, safety].join(", ")
+    }
+    set stats ({ids, vals}) {
+      let {_stats} = this 
+      ids.forEach((id,i) => _stats[id.split(".")[1]] = vals[i])
+    }
+    set featureClaimTimes ({_i, times}) {
+      let {_features} = this
+      //set claim times 
+      _i.forEach((fi,i) => _features[fi].claimTime = times[i])
     }
     get features() {
       let category = {
@@ -486,18 +497,6 @@ const ShardFactory = (app)=>{
         "Inhabitants": [],
         "Settlements": []
       })
-    }
-    get featureClaimPoll () {
-      //pull contracts 
-      let C = sig() 
-
-      let id = this.nftid 
-      
-      //check what features have claims - then map address of those contracts  
-      let claims = this._features.filter(f => C["FC"+f.wi])
-        .map(f => C["FC"+f.wi].address)
-      
-      return {id,claims}
     }
     set owned (bool) {
       this.isOwned = bool
@@ -628,6 +627,11 @@ const ShardFactory = (app)=>{
   */
   let {h, Component, render, html} = app.UI
 
+  //provide stat values 
+  const ShardStat = ([id,val]) => {
+    return html`<span class="mx-1">${id} ${(val/1000).toFixed(2)}</span>`
+  }
+
   //main Shard UI
   class UIShard extends Component {
     constructor() {
@@ -638,6 +642,7 @@ const ShardFactory = (app)=>{
       app.UI.Shard = this
     }
     render({shard}, state) {
+      let stats = shard._stats ? Object.entries(shard._stats) : []
       let sites = shard.features ? shard.features.Sites : []
       let ppl = shard.features ? shard.features.Inhabitants : []
       let stlmt = shard.features ? shard.features.Settlements : []
@@ -646,6 +651,7 @@ const ShardFactory = (app)=>{
         <div>
           <h3 class="m-0" align="left">${shard.title ? Capitalize(shard.title) : ""}</h3>
           <div class="mx-2 font-sm" align="left">Gen ${shard.gen} #${shard.id}, ${shard.hash}</div>
+          <div class="mx-2 font-sm" align="left">${stats.map(e => ShardStat(e))}</div>
           <div class="row mx-1" align="left">
               <${UISites} sites=${sites}><//>
               <${UIInhabitants} ppl=${ppl}><//>
@@ -779,17 +785,19 @@ const ShardFactory = (app)=>{
   }
 
   //what may be claimed 
-  const MAYCLAIM = [1,2,3,4] 
+  const MAYCLAIM = [1,2,3,4,6,8] 
    
   //individual site UI
   const UISite = ({data})=>{
     let shard = app.UI.Shard.props.shard
-    let {wi, what, hash, parent} = data
+    let {wi, what, hash, parent, claimTime = 0} = data
     let site = Features[what](hash, parent)
-    let _mayClaim = MAYCLAIM.includes(wi) && shard.isOwned
+
+    //claim conditions 
+    let _mayClaim = MAYCLAIM.includes(wi) && shard.isOwned && (claimTime == 0 || (Date.now()/1000 - claimTime) > (60*60*24))
 
     // 
-    return html`<div><span class=${_mayClaim ? 'link' : ''} onClick=${()=>SiteClaim(data)}>${Capitalize(what)}</span>, ${site.what}</div>`
+    return html`<div><span class=${_mayClaim ? 'link' : ''} onClick=${()=>SiteClaim(data)}>${_mayClaim ? "" : "🕐"} ${Capitalize(what)}</span>, ${site.what}</div>`
   }
 
   
