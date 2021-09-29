@@ -99,6 +99,45 @@ const FEATURES = {
   steps : [40,50,60,75,79,83,87,91,95,100,110]
 }
 
+const CLAIMS = {
+  "creature":{},
+  "hazard":{
+    "_c" : 1,
+    "cost" : "1 Cosmic",
+    "prize": "1d3 Cosmic"
+  },
+  "obstacle":{
+    "_c" : 1,
+    "cost" : "1 Cosmic",
+    "prize": "1d3 Cosmic"
+  },
+  "area":{
+    "_c" : 1,
+    "cost" : "1 Cosmic",
+    "prize": "2d3 Cosmic"
+  },
+  "dungeon":{
+    "_c" : 1,
+    "cost" : "1 Cosmic",
+    "prize": "50/50 ~1 DMD/~0.2 RLC0"
+  },
+  "lair":{},
+  "ruin":{
+    "_c" : 1,
+    "cost" : "1 Cosmic",
+    "prize": "50/50 ~1 DMD/~0.2 RLC0"
+  },
+  "outpost":{},
+  "landmark":{
+    "_c" : 1,
+    "cost" : "1 Cosmic",
+    "prize": "~0.3 WAY"
+  },
+  "resource":{},
+  "faction":{},
+  "settlement":{}
+}
+
 const RESOURCE = ["game/hide/fur", "timber/clay", "herb/spice/dye", "copper/tin/iron", "silver/gold/gems", "magical"]
 
 //dungeons ["caves/caverns", "ruined settlement", "prison", "mine", "crypt/tomb", "lair/den/hideout", "stronghold/fortress", "temple/sanctuary", "archive/laboratory", "origin unknown"]
@@ -754,34 +793,37 @@ const ShardFactory = (app)=>{
           let text = "Claim Confirmed: " + res.blockNumber
           console.log(text)
           app.simpleNotify(text, "info", "center")
+
+          //update 
+          app.eth.checkShardStats(byContract(nft,id))
         }
         )
       }
       )
   }
 
-  const SiteClaim = (data) => {
-    let {_721, id} = app.UI.Shard.props.shard
+  const SiteClaim = (mayClaim, data) => {
+    if(!mayClaim) return
+    
+    let modal = app.UI.modal
+    let {_721, id, _features, _cosmic} = app.UI.Shard.props.shard
+    let {_c, cost, prize} = CLAIMS[data.what]
 
-    let n = new Noty({
-      theme: "relax",
-      text : "Do you want to claim?",
-      type:"alert",
-      layout:"center",
-      timeout:0,
-      buttons: [
-        Noty.button('YES', 'btn btn-success mx-2', function () {
-            //submit claim 
-            EVMSiteClaim(_721, id, data.i, data.wi)
-            n.close();
-        }),
+    let body = html`
+    <div align="center">
+      <h5 align="left">Claim ${Capitalize(data.what)}</h5>
+      <div class="d-flex justify-content-between">
+        <div>Cost: ${cost}</div> 
+        <div>Prize: ${prize}</div>
+      </div>
+      <button class="btn btn-success mx-1" type="button" data-dismiss="modal" onClick=${()=>EVMSiteClaim(_721, id, data.i, data.wi)} disabled=${_c>_cosmic}>Yes</button>
+      <button class="btn btn-light mx-1" type="button" data-dismiss="modal">No</button>
+    </div>
+    `
 
-        Noty.button('NO', 'btn btn-light', function () {
-            n.close();
-        })
-      ]
-    })
-    n.show()
+    //set modal and call 
+    modal.setState({body})
+    $('#mainModal').modal()
   }
 
   //what may be claimed 
@@ -795,9 +837,14 @@ const ShardFactory = (app)=>{
 
     //claim conditions 
     let _mayClaim = MAYCLAIM.includes(wi) && shard.isOwned && (claimTime == 0 || (Date.now()/1000 - claimTime) > (60*60*24))
+    let timer = shard.isOwned && !_mayClaim ? "🕐" : ""
 
     // 
-    return html`<div><span class=${_mayClaim ? 'link' : ''} onClick=${()=>SiteClaim(data)}>${_mayClaim ? "" : "🕐"} ${Capitalize(what)}</span>, ${site.what}</div>`
+    return html`
+    <div>
+      <span class=${_mayClaim ? 'link' : ''} onClick=${()=>SiteClaim(_mayClaim, data)}> ${timer} ${Capitalize(what)}</span>
+      , ${site.what}
+    </div>`
   }
 
   

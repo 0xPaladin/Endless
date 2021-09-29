@@ -11,30 +11,24 @@ const NETRPC = {
   5 : "https://goerli.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
   250 : "https://rpc.ftm.tools"
 }
+const SUPPORTEDNETS = [1,5,250]
 
 const FTMSCAN = "https://api.ftmscan.com/api?module=account&action=tokennfttx&contractaddress="
 const FTMAPI = "&apikey=KSTS4EH3UBX6J7BW3J31NP469P863VE2DH"
 
 if(window.ethereum) {
-  // A Web3Provider wraps a standard Web3 provider, which is
-  // what Metamask injects as window.ethereum into each page
+  // A Web3Provider wraps a standard Web3 provider, which is what Metamask injects as window.ethereum into each page
   provider = new ethers.providers.Web3Provider(window.ethereum, "any");
   let {chainId} = await provider.getNetwork()
 
-  //change to Fantom 
-  if(chainId != 250) {
-    await ethereum.request({ method: 'wallet_switchEthereumChain', params:[{chainId: '0xFA'}]});
-  }
-
-  reader =  NETRPC[chainId] ? new ethers.providers.JsonRpcProvider(NETRPC[chainId]) : ethers.getDefaultProvider(chainId) ? ethers.getDefaultProvider(chainId) : null 
+  reader =  NETRPC[chainId] ? new ethers.providers.JsonRpcProvider(NETRPC[chainId]) : new ethers.providers.JsonRpcProvider(NETRPC["250"]) 
   
   // Prompt user for account connections
   await provider.send("eth_requestAccounts", []);
   
   provider.on("network", (newNetwork, oldNetwork) => {
-        // When a Provider makes its initial connection, it emits a "network"
-        // event with a null oldNetwork along with the newNetwork. So, if the
-        // oldNetwork exists, it represents a changing network
+        // When a Provider makes its initial connection, it emits a "network" event with a null oldNetwork along with the newNetwork. 
+        // So, if the oldNetwork exists, it represents a changing network
         if (oldNetwork) {
             window.location.reload();
         }

@@ -92,10 +92,56 @@ const UI = (app)=>{
     }
   }
 
+  class Modal extends Component {
+    constructor() {
+      super();
+      this.state = {
+        title: "",
+        body : "",
+        footer : ""
+      }
+    }
+    // Lifecycle: Called whenever our component is created
+    componentDidMount() {
+      app.UI.modal = this
+    }
+    header () {
+      let div = this.state.title
+
+      let _header = html`
+      <div class="modal-header">
+        <h5 class="modal-title">${div}</h5>
+        <button type="button" class="close" data-dismiss="modal">
+          <span>X</span>
+        </button>
+      </div>
+      `
+
+      return div == "" ? html`` : _header
+    }
+    footer () {
+      let div = this.state.footer
+
+      let _footer = html`<div class="modal-footer">${div}</div>`
+
+      return div == "" ? html`` : _footer
+    }
+    render({data}, {body}) {
+      return html`
+          <div class="modal-content">
+            ${this.header()}
+            <div class="modal-body">${body}</div>
+            ${this.footer()}
+          </div>
+      `
+    }
+  }
+
   class App extends Component {
     constructor() {
       super();
       this.state = {
+        modal: {},
         shard: {},
         time: Date.now(),
         network: "",
@@ -305,11 +351,14 @@ const UI = (app)=>{
       return myShards.length == 0 ? "" : out
     }
 
-    render(props, {shard, address, network, balance, nFixed, NFT, gen, myShards}) {
+    render(props, {shard, address, network, balance, nFixed, NFT, gen, myShards, modal}) {
       let Gen0 = NFT.Gen0
 
       return html`
           <div class="app">
+            <div class="modal fade" tabindex="-1" id="mainModal">
+              <div class="modal-dialog"><${Modal} data=${modal}><//></div>
+            </div>
             <div class="d-flex justify-content-between align-items-center">
               <h1 class="m-1 p-1">Endless</h1>
               <div class="mx-2" align="center">
