@@ -120,7 +120,7 @@ const loadContracts = (netId) => {
       sig[name] = new ethers.Contract(CONTRACTS[netId][x], ABI[netId][id], signer)
     }
     if(READONLY.includes(x) && ABI[netId][id]){
-      read[name] = new ethers.Contract(CONTRACTS[netId][x], ABI[netId][id], reader)
+      read[name] = new ethers.Contract(CONTRACTS[netId][x], ABI[netId][id], signer)
     }
   }
 
