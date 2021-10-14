@@ -12,7 +12,7 @@ const V = {
 }
 
 const CREATURE = {
-  "random": [["Human", "Humanoid", "Beast", "Monster"], [15, 35, 35, 15]],
+  "base": ["Human", "Humanoid", "Beast", "Monster"],
   "Humanoid": {
     "what" : [["rare", "uncommon", "common"], [2, 3, 7]],
     "rare" : [["UndeadMajor","Animal","Werebeast","tiny"],[2,5,2,3]],
@@ -43,11 +43,17 @@ const CREATURE = {
     "minor" : [["skeleton","zombie","wight","wisp","wraith"],[2,2,2,1,2]]
   },
   "size" : {
-    "p" : [1, 2, 6, 2, 1],
+    "id" : [0,1,1,2,2,2,2,2,2,3,3,4],
     "text" : ["tiny", "small", "medium", "large", "huge"]
   },
   "nApp" : {
-    "p" : [[1, 6, 5], [2, 7, 3], [4, 6, 2], [9, 3, 0], [11, 1, 0]],
+    "id" : [
+      [0,1,1,1,1,1,1,2,2,2,2,2],
+        [0,0,1,1,1,1,1,1,1,2,2,2],
+        [0,0,0,0,1,1,1,1,1,1,2,2],
+        [0,0,0,0,0,0,0,0,0,1,1,1],
+        [0,0,0,0,0,0,0,0,0,0,0,1]
+    ],
     "text" : ["solitary", "group", "throng"],
     "qty": [1, "1d6+1", "3d6+5"]
   },
@@ -68,14 +74,19 @@ const CREATURE = {
 const SIZES = ["tiny", "small", "medium", "large", "huge"]
 
 const Creature = { 
-  SizeQ (hash){
-    let hashSize = keccak256(["bytes32","string"], [hash, "size"])
-    let hashNApp = keccak256(["bytes32","string"], [hash, "nApp"])
-
-    let _size = weighted(hashSize, [0, 1, 2, 3, 4], CREATURE.size.p)
-    let _nApp = weighted(hashNApp, [0, 1, 2], CREATURE.nApp.p[_size])
-
-    return {_size, _nApp}
+  size (hash) {
+    return CREATURE.size.id[integer(keccak256(["bytes32","string"], [hash, "size"]),12)]
+  },
+  nApp (hash, size) {
+    return CREATURE.nApp.id[size][integer(keccak256(["bytes32","string"], [hash, "nApp"]),12)]
+  },
+  skillMods (hash){
+    //boost 
+    let b = integer(keccak256(["bytes32","string"], [hash, "stat-boost"]),6)
+    //penalty 
+    let _p = 1 + integer(keccak256(["bytes32","string"], [hash, "stat-penalty"]),5)
+    let p = b+_p > 5 ? b+_p-6 : b+_p;   
+    return [b,p]
   },
   Werebeast (_hash) {
     let hash = keccak256(["bytes32","string"], [_hash, "werebeast"])
@@ -155,102 +166,55 @@ const Creature = {
   },
   Beast(seed) {
     let hash = keccak256(["string","uint256"], ["Beast",seed])
+    
+    let _size = this.size(hash)
+    let _nApp = this.nApp(hash, _size)
+
     let data = {
       "is" : "Beast",
-      seed
+      "what" : Capitalize(this.Animal(hash).what),
+      seed,
+      _size,
+      _nApp,
+      armor : weighted(keccak256(["bytes32","string"], [hash,"armor"]), ...CREATURE.armor),
+      _baseSkills: this.skillMods(hash).slice() 
     }
-
-    //get animal form 
-    data.what = Capitalize(this.Animal(hash).what)
-    //size and qty 
-    Object.assign(data, this.SizeQ(hash))
-    //armor 
-    let hashArmor = keccak256(["bytes32","string"], [hash,"armor"])
-    data.armor = weighted(hashArmor, ...CREATURE.armor)
-
-    //skills 
-    data._baseSkills = shuffle(keccak256(["bytes32","string"], [hash, "skills"]), CREATURE.skillGroups.id).slice(0,2)
 
     return this.format(data)
   },
   Monster(seed) {
     let hash = keccak256(["string","uint256"], ["Monster",seed])
+    
+    let _size = this.size(hash)
+    let _nApp = this.nApp(hash, _size)
+
     let data = {
       "is" : "Monster",
+      "what" : "Monster",
       seed,
-      what : "",
-      _size : null
+      _size,
+      _nApp,
+      armor : weighted(keccak256(["bytes32","string"], [hash,"armor"]), ...CREATURE.armor),
+      _baseSkills: this.skillMods(hash).slice() 
     }
-
-    //first get major then minor
-    let hashMinor = keccak256(["bytes32","string"], [hash, "minor"]) 
-    let what = weighted(hashMinor, ...CREATURE.Monster[weighted(hash , ...CREATURE.Monster.what)]).split("+")
-    what.forEach((w,i) => {
-      //get form 
-      let form = TableGen[w] ? TableGen[w](hash) : this[w] ? this[w](hash) : null
-      let what = (i>0 ? " " : "") + (!form ? i==0 ? w : "" : w == "Oddity" ? "Oddity" : form.what)
-      data.what += what
-      //check for size 
-      if(SIZES.includes(w)){
-        data._size = SIZES.indexOf(w)
-
-        let hashNApp = keccak256(["bytes32","string"], [hash, "nApp"])
-        data._nApp = weighted(hashNApp, [0, 1, 2], CREATURE.nApp.p[data._size])
-      }       
-    })
-
-    if(!data._size){
-      //size and qty 
-      Object.assign(data, this.SizeQ(hash))
-    } 
-
-    let hashArmor = keccak256(["bytes32","string"], [hash, "armor"])
-    data.armor = weighted(hashArmor, ...CREATURE.armor)
-
-    //skills 
-    data._baseSkills = shuffle(keccak256(["bytes32","string"], [hash, "skills"]), CREATURE.skillGroups.id).slice(0,2)
 
     return this.format(data)
   },
   Humanoid(seed) {    
     let hash = keccak256(["string","uint256"], ["Humanoid",seed])
+
+    let _size = this.size(hash)
+    let _nApp = this.nApp(hash, _size)
+
     let data = {
       "is" : "Humanoid",
-      seed
+      "what" : "Humanoid",
+      seed,
+      _size,
+      _nApp,
+      armor : 0,
+      _baseSkills: this.skillMods(hash).slice() 
     }
-
-    //first get major then minor 
-    let hashMajor = keccak256(["bytes32","string"], [hash, "major"])
-    let hashMinor = keccak256(["bytes32","string"], [hash, "minor"])
-    let what = weighted(hashMinor, ...CREATURE.Humanoid[weighted(hashMajor, ...CREATURE.Humanoid.what)])
-
-    //check if sub generation
-    if(this[what]) {
-      data.form = this[what](hash)
-    }
-
-    data.what = !data.form ? "Humanoid" : (data.form.is == "animal" ? "Humanoid "+ data.form.what : data.form.what)
-
-    //check if includes size 
-    if(SIZES.includes(what)){
-      data._size = SIZES.indexOf(what)
-
-      let hashNApp = keccak256(["bytes32","string"], [hash, "nApp"])
-      data._nApp = weighted(hashNApp, [0, 1, 2], CREATURE.nApp.p[data._size])
-    }
-    else if (data.form && data.form._size) {
-      data._size = data.form._size
-      data._nApp = data.form._nApp
-    }
-    else {
-      Object.assign(data, this.SizeQ(hash))
-    }
-
-    let hashArmor = keccak256(["bytes32","string"], [hash, "armor"])
-    data.armor = weighted(hashArmor, ...CREATURE.armor)
-
-    //skills 
-    data._baseSkills = shuffle(keccak256(["bytes32","string"], [hash, "skills"]), CREATURE.skillGroups.id).slice(0,2)
 
     return this.format(data)
   },
@@ -258,10 +222,7 @@ const Creature = {
     let hash = keccak256(["string","uint256"], ["Human",seed])
 
     let _size = 2
-    let _nApp = weighted(hash, [0, 1, 2], CREATURE.nApp.p[_size])
-
-    //skills 
-    let _baseSkills = shuffle(keccak256(["bytes32","string"], [hash, "skills"]), CREATURE.skillGroups.id).slice(0,2)
+    let _nApp = this.nApp(hash, _size)
 
     let data = {
       "is" : "Human",
@@ -270,7 +231,7 @@ const Creature = {
       _size,
       _nApp,
       armor : 0,
-      _baseSkills
+      _baseSkills: this.skillMods(hash).slice() 
     }
 
     return this.format(data)
@@ -306,16 +267,18 @@ const Creature = {
     generate creature from seed 
   */
   byHash(hash, v=0) {
-    //first is the type of creature
-    let what = weighted(hash, ...CREATURE.random)
+    const SEEDMAX = 256 ** 4
+    //first is the base form of the creature
+    let bp = integer(hash,100)
+    let base = bp < 15 ? 0 : bp < 50 ? 1 : bp < 85 ? 2 : 3;
+    let what = CREATURE.base[base]
 
     //next is the seed for the type
-    let _hashRange = keccak256(["bytes32", "string"], [hash, "seed-distribution"])
+    let rp = integer(keccak256(["bytes32", "string"], [hash, "seed-distribution"]),100)
     //seed range is a distribution - 50% < 100; 90% < 1000
-    let seedRange = weighted(_hashRange, [100,1000,V[v].seeds[CREATURE.random[0].indexOf(what)]], [50,40,10]) 
+    let _rangeMax = rp < 50 ? 100 : rp < 90 ? 1000 : SEEDMAX;
     //get seed based upon range
-    let _hashSeed = keccak256(["bytes32", "string"], [hash, "seed"])
-    let seed = integer(_hashSeed, seedRange)
+    let seed = integer(keccak256(["bytes32", "string"], [hash, "seed"]), _rangeMax)
 
     return Object.assign({hash}, this[what](seed))
   }
@@ -336,12 +299,21 @@ const CreatureManager = (app) => {
   */
   let {h, Component, render, html} = app.UI
 
-  app.creature.UI = ({hash}) => {
-    let {seed, what, size, nApp, baseSkills} = byHash(hash)
+  app.creature.UI = ({i,hash}) => {
+    let shard = app.UI.Shard.props.shard
+    let claimTime = i > -1 ? shard._features[i].claimTime : 0
+
+    let _creature = byHash(hash)
+    let {seed, what, size, nApp, baseSkills} = _creature 
+
+    //claim conditions 
+    let _mayClaim = i>-1 && shard.isOwned && (claimTime == 0 || (Date.now()/1000 - claimTime) > (60*60*24))
+    let timer = shard.isOwned && i>-1 && !_mayClaim ? "🕐" : ""
 
     return html`
-      <div>
-        <span>${Capitalize(what)}
+      <div onClick=${()=>console.log(_creature)}>
+        <span>
+          <span class=${_mayClaim ? 'link' : ''}>${timer} ${Capitalize(what)}</span>
           <span class="mx-1 font-sm">
             (${size}, ${nApp})
             [<span class="font-green">${baseSkills[0]}</span>/ 

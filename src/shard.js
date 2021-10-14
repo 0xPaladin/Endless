@@ -14,12 +14,20 @@ const ZEROBYTES = "0x00000000000000000000000000000000000000000000000000000000000
 
 const GEN = {
   "base": "But God...",
-  "721": {
+  "250" : {
     "0xB60794c2fcbc7a74672D273F80CE1CA5050435a8": 0,
     "0x8dB24cD8451B133115588ff1350ca47aefE2CB8c": 0,
     "0x693eD718D4b4420817e0A2e6e606b888DCbDb39B": "E",
     "0xce761D788DF608BD21bdd59d6f4B54b2e27F25Bb": "R"
+  },
+  "9000" : {
+    "0x8dB24cD8451B133115588ff1350ca47aefE2CB8c": "E",
   }
+}
+
+const MAYCLAIM = {
+  "250" : [0,1,2,3,4,6,8] ,
+  "9000" : []
 }
 
 /*
@@ -436,7 +444,7 @@ const ShardFactory = (app)=>{
       let nftid = keccak256(["address", "uint256"], [_721, id])
 
       //get gen 
-      let gen = this.gen = GEN["721"][_721] || 0
+      let gen = this.gen = GEN[app.net.chainId || "9000"][_721] || 0
       //hash 
       this.key = keccak256(["string", "address", "uint256"], [GEN.base, _721, id])
       let hash = this.hash = opts.hash || this.key 
@@ -539,6 +547,17 @@ const ShardFactory = (app)=>{
     }
     set owned (bool) {
       this.isOwned = bool
+    }
+    //ETH Functions 
+    async ethStats () {
+      //get claim times 
+      app.eth.checkShardClaims(this)
+
+      let statIds = ["SRD.DMD","SRD.RLC0","SRD.WAY"] 
+      let vals = (await app.eth.getBatchOfStats(statIds,this._721,this.id,false)).map(bn => bn.toNumber())
+      
+      //set 
+      this.stats = {ids: statIds, vals}
     }
     //set cosmic and update size as required 
     set cosmic (val) {
@@ -725,7 +744,7 @@ const ShardFactory = (app)=>{
   }
 
   const UIFaction = ({data}) => {
-    let {what, hash, parent} = data
+    let {i, what, hash, parent} = data
     let faction = Features.faction(hash, parent)
     let {state, goal, _culture} = faction
     let culture = app.culture.byHash(_culture)
@@ -739,7 +758,7 @@ const ShardFactory = (app)=>{
         <h5 class="m-0">Faction</h5>
         <div>${faction.what}, ${state}, ${goal}</div>
         <div class="px-1">C${culture.seed}: ${alignment}; +${baseSkills[0]}/-${baseSkills[1]}</div>
-        ${_people.map(hash=> html`<${cUI} hash=${hash}><//>`)}
+        ${_people.map(hash=> html`<${cUI} hash=${hash} i=${-1}><//>`)}
       </div>
     `
   }
@@ -755,7 +774,7 @@ const ShardFactory = (app)=>{
       <div class="col rounded bg-light p-2 m-1">
         <h4 class="m-0">Inhabitants</h4>
         <div>
-          ${ppl.map(p=> html`<${cUI} hash=${p.hash}><//>`)}
+          ${ppl.map(p=> html`<${cUI} hash=${p.hash} i=${p.i}><//>`)}
         </div>
       </div>
     `;
@@ -825,18 +844,16 @@ const ShardFactory = (app)=>{
     modal.setState({body})
     $('#mainModal').modal()
   }
-
-  //what may be claimed 
-  const MAYCLAIM = [1,2,3,4,6,8] 
    
   //individual site UI
   const UISite = ({data})=>{
     let shard = app.UI.Shard.props.shard
     let {wi, what, hash, parent, claimTime = 0} = data
     let site = Features[what](hash, parent)
+    let MC = app.net.chainId ? MAYCLAIM[app.net.chainId] : []
 
     //claim conditions 
-    let _mayClaim = MAYCLAIM.includes(wi) && shard.isOwned && (claimTime == 0 || (Date.now()/1000 - claimTime) > (60*60*24))
+    let _mayClaim = MC.includes(wi) && shard.isOwned && (claimTime == 0 || (Date.now()/1000 - claimTime) > (60*60*24))
     let timer = shard.isOwned && !_mayClaim ? "🕐" : ""
 
     // 

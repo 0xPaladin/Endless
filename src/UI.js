@@ -3,7 +3,7 @@ import {Capitalize} from "./endless-utils.js"
 
 const UI = (app)=>{
   let sig = ()=>app.eth.contracts.sig;
-  let {h, Component, render, html, Shard} = app.UI;
+  let {h, Component, render, html, Shard, Ally} = app.UI;
 
   /*
     Inhabitants
@@ -228,13 +228,21 @@ const UI = (app)=>{
 
     //buy the nft 
     shardClaim() {
+      let {NFT, network} = this.state 
       let C = sig().ERC721FreeClaim
-      let overrides = {
-        gasLimit: "500000"
+      
+      let calldata = []
+      if(this.network == "FTM") {
+        calldata = [{
+          gasLimit: "500000"
+        }]
+      }  
+      else {
+        calldata = [NFT.GenE.address]
       }
 
       //buy it - handle tx notification
-      C.claim(overrides).then(async tx=>{
+      C.claim(...calldata).then(async tx=>{
         let {hash} = tx
 
         //log and notification
@@ -280,29 +288,6 @@ const UI = (app)=>{
       )
     }
 
-    claimCosmic(_721, id) {
-      let C = sig().ShardCosmicClaim
-
-      //claim it - handle tx notification
-      //claim(address nft, uint256 id)
-      C.claim(_721, id).then(async tx=>{
-        let {hash} = tx
-
-        //log and notification
-        let text = "Claim Submitted: " + hash
-        console.log(text)
-        app.simpleNotify(text, "info", "center")
-
-        tx.wait(1).then(res=>{
-          let text = "Claim Confirmed: " + res.blockNumber
-          console.log(text)
-          app.simpleNotify(text, "info", "center")
-        }
-        )
-      }
-      )
-    }
-
     ownedShards() {
       let {myShards, NFT, transfer} = this.state
 
@@ -320,7 +305,7 @@ const UI = (app)=>{
                     <div class="dropdown">
                         <button class="btn btn-light mx-2" type="button" data-toggle="dropdown"><img src="media/md-menu.svg" height="20" width="20"></img></button>
                         <div class="dropdown-menu">
-                            <a class="dropdown-item" href="#" onClick=${()=>this.claimCosmic(_721, id)}>Claim Cosmic</a>
+                            <a class="dropdown-item" href="#" onClick=${()=>app.eth.claimCosmic(shard)}>Claim Cosmic</a>
                             <a class="dropdown-item" href="#" onClick=${()=>this.setState({
           transfer: {
             nft: _721,
@@ -367,25 +352,29 @@ const UI = (app)=>{
               </div>
             </div>
             <div class="container" align="center">
-              ${!["FTM", "gETH"].includes(network) ? html`
+              ${!["FTM", "gETH","PHOTON"].includes(network) ? html`
                 <p class="rounded bg-danger text-white p-2" align="center">
-                  Endless is not available on this chain. Please change to the Fantom Network.
+                  Endless is not available on this chain. Please change to the Evmos Testnet.
                 </p>
               ` : ""}
               <div align="center">
                 <button class="btn btn-light m-1" type="button" data-toggle="collapse" data-target="#viewShards">View Shards</button>
                 <button class="btn btn-light m-1" type="button" data-toggle="collapse" data-target="#myShards">My Shards</button>
+                <button class="btn btn-light m-1" type="button" data-toggle="collapse" data-target="#myAllies">My Allies</button>
                 <button class="btn btn-light m-1" type="button" data-toggle="collapse" data-target="#about">About</button>
               </div>
               <div class="accordion" id="accordionMain">
                 <div id="about" class="collapse" data-parent="#accordionMain">${About()}</div>
                 <div id="myShards" class="collapse" data-parent="#accordionMain">
-                  ${["FTM"].includes(network) ? html`
+                  ${["FTM","PHOTON"].includes(network) ? html`
                   <div>
                       <button type="button" class="btn btn-info btn-block" onClick=${()=>this.shardClaim()}>Commit to Claim a Shard [free, gas only]</button>
                   </div>
                   ` : ""}
                   ${this.ownedShards()}
+                </div>
+                <div id="myAllies" class="collapse" data-parent="#accordionMain">
+                  <${Ally}><//>
                 </div>
                 <div class="collapse" id="viewShards" data-parent="#accordionMain">
                   ${["FTM"].includes(network) ? html`

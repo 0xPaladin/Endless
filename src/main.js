@@ -14,6 +14,7 @@ import {EVMManager} from "./eth.js"
 
 //Main APP object
 let app = {
+  net : {},
   d3,
   chance: new Chance(),
   //Save db for Indexed DB - localforage
@@ -74,6 +75,10 @@ HexFactory(app)
 //handle shard creation
 import {ShardFactory} from "./shard.js"
 ShardFactory(app)
+
+//Allies
+import {AllyFactory} from "./ally.js"
+AllyFactory(app)
 
 //UI
 import {UI} from "./UI.js"

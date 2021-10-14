@@ -91,7 +91,7 @@ const SettlementManager = (app)=>{
             <span class="font-green">${baseSkills[0]}</span>/ 
             <span class="font-red">${baseSkills[1]}</span>.
           </span>
-          ${_people.map(hash=> html`<${cUI} hash=${hash}><//>`)}
+          ${_people.map(hash=> html`<${cUI} hash=${hash} i=${-1}><//>`)}
         </div>
       </div>
     `
