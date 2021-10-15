@@ -239,6 +239,15 @@ const EVMManager = async (app) => {
       F(...calldata).then(tx => this.handleTx(tx,"Claim"))
     }
 
+    //claim cosmic for a shard 
+    app.eth.txCosmic = async function (fromShard, toShard, val) {
+      let F = chainId == 250 ? this.contracts.sig.TransferCosmic.transfer : this.contracts.sig.ShardCosmic.transfer; 
+      let calldata = chainId == 250 ? [fromShard._721,fromShard.id,toShard._721,toShard.id,app.eth.parseUnits(val)] : [fromShard.id,toShard.id,app.eth.parseUnits(val)]
+
+      //transfer
+      F(...calldata).then(tx => this.handleTx(tx,"Transfer"))
+    }
+
     //handle a tx respose for every eth tx 
     app.eth.handleTx = async function (tx, text) {
       let {hash} = tx
@@ -284,6 +293,7 @@ const EVMManager = async (app) => {
   }
 
   const checkAllyIds = async (nft) => {
+    return
     let _ids = await app.eth.getNFTIdBatch(nft.id)
     let _people = await app.eth.getStatsOfIdBatch("people",nft.address,_ids,true)
 

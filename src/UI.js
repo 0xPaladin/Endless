@@ -40,27 +40,8 @@ const UI = (app)=>{
       let {data} = this.props
       let {gen, id, val} = this.state 
 
-      let C = sig().TransferCosmic
-      
       //handles transfer 
-      //transfer(address fromNFT, uint256 fromId, address toNFT, uint256 toId, uint256 val) 
-      C.transfer(data.nft, data.id, NFT[gen].address, id, app.eth.parseUnits(val)).then(async tx=>{
-        let {hash} = tx
-
-        //log and notification
-        let text = "Transfer Submitted: " + hash
-        console.log(text)
-        app.simpleNotify(text, "info", "center")
-
-        tx.wait(1).then(res=>{
-          let text = "Transfer Confirmed: " + res.blockNumber
-          console.log(text)
-          app.simpleNotify(text, "info", "center")
-        }
-        )
-      }
-      )
-      console.log(this.props, this.state)
+      app.eth.txCosmic(app.shard.byContract(data.nft,data.id),app.shard.byContract(NFT[gen].address,id),val)
     }
     render({data}, state) {
         let main = app.UI.main

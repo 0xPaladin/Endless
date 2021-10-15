@@ -11,22 +11,20 @@ pragma solidity ^0.8.0;
 interface IERC721 {
     function ownerOf(uint256 tokenId) external view returns (address owner);
     function getApproved(uint256 tokenId) external view returns (address operator);
-}
-interface IStats {
-    function getStat (string calldata statId, address _721, uint256 nftId) external view returns(uint256);
-    function add (string calldata statId, address _721, uint256 nftId, uint256 val) external;
-    function sub (string calldata statId, address _721, uint256 nftId, uint256 val) external;
+    function stat(string calldata statId, uint256 id) external view returns (bytes memory);
+    function add (string calldata statId, uint256 id, uint256 val) external;
+    function sub (string calldata statId, uint256 id, uint256 val) external;
 }
 interface ISize {
-    function size(address nft, uint256 id) external view returns (uint256 sz, uint256 nR, uint256 nF);
+    function size(uint256 id) external view returns (uint256 sz, uint256 nR, uint256 nF);
 }
 
 contract ShardFeatures {
     address public admin;
     
     //contracts 
-    IStats public STATS = IStats(0xeEd019D0726e415526804fb3105a98323911E494);
-    ISize public SIZE = ISize(0xAA6411a301A6e423f5eb9b1bF455CeBD0B2d2098);
+    IERC721 public SHARDS = IERC721(0x8dB24cD8451B133115588ff1350ca47aefE2CB8c);
+    ISize public SIZE = ISize(0xc8B0bEac15375FcD15c81E3f484a6D485fbf4AA4);
 
     uint256[12] internal ALIGNMENT = [0,1,1,2,2,2,2,2,2,3,3,4];
     uint256[5] internal ALIGNMENT_MOD = [8,10,5,0,2];
@@ -38,7 +36,11 @@ contract ShardFeatures {
     constructor() {
         admin = msg.sender;
     }
-
+    
+    /*
+        COMMON
+    
+    */
     //psuedo random integer 
     function _integer (bytes32 _hash, uint256 max) 
         internal pure returns (uint256)
@@ -47,45 +49,45 @@ contract ShardFeatures {
     }
 
     //hash makes each shard unique 
-    function hash (address nft, uint256 id)
-        public pure returns (bytes32) 
+    function hash (uint256 id)
+        public view returns (bytes32) 
     {
-        return keccak256(abi.encode("But God...",nft,id));
+        return keccak256(abi.encode("But God...",address(SHARDS),id));
     }
     
     /*
-    *   Feature Generator  
+        FEATURES 
     */
-    
+
     //determines alignment and then safety 
-    function safety (address nft, uint256 id) 
+    function safety (uint256 id) 
         public view returns (uint256 align, uint256 safe)
     {
         //based on generation 
-        bytes32 _hash = hash(nft,id);
-        align = ALIGNMENT[_integer(keccak256(abi.encode(_hash,"alignment")), 12)];
+        bytes32 _h = hash(id);
+        align = ALIGNMENT[_integer(keccak256(abi.encode(_h,"alignment")), 12)];
         
-        uint256 safeRoll = ALIGNMENT_MOD[align] + _integer(keccak256(abi.encode(_hash,"safety")), 12);
+        uint256 safeRoll = ALIGNMENT_MOD[align] + _integer(keccak256(abi.encode(_h,"safety")), 12);
         safe = SAFETY[safeRoll];
     }
     
     //feature based on number  
-    function featureByIndex (address nft, uint256 id, uint256 fi) 
+    function featureByIndex (uint256 id, uint256 fi) 
         public view returns (uint256 what, bytes32 fHash)
     {
         //current size 
-        (, , uint256 nF) = SIZE.size(nft, id);
+        (, , uint256 nF) = SIZE.size(id);
         //return 0 if outside of feature range 
         if(fi >= nF){
             return (0, bytes32(0));
         }
         
         //base hash for generation 
-        bytes32 _hash = hash(nft,id);
-        bytes32 _baseHash = keccak256(abi.encode(_hash,"feature",fi));
+        bytes32 _h = hash(id);
+        bytes32 _baseHash = keccak256(abi.encode(_h,"feature",fi));
 
         //get safety
-        (,uint256 safe) = safety(nft, id);
+        (,uint256 safe) = safety(id);
         
         //first 2 are set - otherwise random number 
         uint256 r = fi < 2 ? [1,65][fi] : 1 + _integer(_baseHash, 120) + (10 * safe);
@@ -105,9 +107,10 @@ contract ShardFeatures {
     /*
     *   Claim Features 
     */
+    uint256 internal NONCE = 0;
     
     //pay to claim 
-    string internal PAYID = "SRD.COSMIC";
+    string internal COSMIC = "COSMIC";
     uint256 internal COST = 1 ether;
     
     //what may be claimed 
@@ -127,29 +130,29 @@ contract ShardFeatures {
     }
     
     //unique id for each claim for traking time 
-    function _claimId (address nft, uint256 id, uint256 fi) 
+    function _claimId (uint256 id, uint256 fi) 
         internal pure returns(bytes32) 
     {
-        return keccak256(abi.encode(nft, id, fi));
+        return keccak256(abi.encode(id, fi));
     }
     
     //check for approval 
-    function _isApprovedOrOwner(address nft, uint256 id) internal view returns (bool) {
-        return IERC721(nft).getApproved(id) == msg.sender || IERC721(nft).ownerOf(id) == msg.sender;
+    function _isApprovedOrOwner(uint256 id) internal view returns (bool) {
+        return SHARDS.getApproved(id) == msg.sender || SHARDS.ownerOf(id) == msg.sender;
     }
     
-    function _mayClaim (address nft, uint256 id, uint256 fi) 
-        internal returns (bytes[] memory stats, uint256[] memory min, uint256[] memory max)
+    function _mayClaim (uint256 id, uint256 fi) 
+        internal returns (string[] memory stats, uint256[] memory min, uint256[] memory max)
     {
-        require(_isApprovedOrOwner(nft, id), "ShardFeatures: not approved or owner");
+        require(_isApprovedOrOwner(id), "ShardFeatures: not approved or owner");
         
         //get feature 
-        (uint256 _fid, bytes32 hash) = featureByIndex(nft, id, fi);
-        require(hash != bytes32(0), "ShardFeatures: beyond available features");
-        require(_claimWhat[_fid] != bytes(0), "ShardFeatures: incorrect feature type for cliam");
+        (uint256 _fid, bytes32 _h) = featureByIndex(id, fi);
+        require(_h != bytes32(0), "ShardFeatures: beyond available features");
+        require(_claimWhat[_fid].length == 0, "ShardFeatures: incorrect feature type for cliam");
         
         //claim period 
-        bytes32 _claim = _claimId(nft,id,fi);
+        bytes32 _claim = _claimId(id,fi);
         uint256 _now = block.timestamp; 
         require((_now - lastClaim[_claim]) >= PERIOD, "FeatureClaim: wait one day to claim");
         //update claim 
@@ -157,16 +160,16 @@ contract ShardFeatures {
         
         //cleared all require, now pull payment 
         //subtract - will throw a error if not enough 
-        STATS.sub(PAYID, nft, id, COST);
+        SHARDS.sub(COSMIC, id, COST);
         
-        (stats, min, max) = abi.decode(_claimWhat[_fid], (bytes[], uint256[], uint256[]));
+        (stats, min, max) = abi.decode(_claimWhat[_fid], (string[], uint256[], uint256[]));
     }
     
     function _delta (uint256 min, uint256 max) 
-        internal pure returns (uint256 val)
+        internal returns (uint256 val)
     {
         //for pseudo random delta
-        bytes32 rand = keccak256(abi.encode(blockhash(block.number-1), block.timestamp, msg.sender, "delta"));
+        bytes32 rand = keccak256(abi.encode(++NONCE, block.timestamp, msg.sender, "delta"));
         uint256 r = 0;
         for(uint256 i = 0; i < 3; i++){
             r += _integer(keccak256(abi.encode(rand,i)),6);
@@ -177,17 +180,17 @@ contract ShardFeatures {
         val = min + (d * r / 15);
     } 
 
-    function claim (address nft, uint256 id, uint256 fi) 
+    function claim (uint256 id, uint256 fi) 
         public 
     {
         //check allow claim - and collect payment  
-        (string[] memory stats, uint256[] memory min, uint256[] memory max) = _mayClaim(nft, id, fi);
+        (string[] memory stats, uint256[] memory min, uint256[] memory max) = _mayClaim(id, fi);
         
         //determine which is claimed 
-        uint256 _ci = _integer(keccak256(abi.encode(blockhash(block.number-1), block.timestamp, msg.sender, "claim")), stats.length); 
+        uint256 _ci = _integer(keccak256(abi.encode(++NONCE, block.timestamp, msg.sender, "claim")), stats.length); 
         uint256 val = _delta(min[_ci],max[_ci]);
         
         //give token 
-        STATS.add(CLAIMID[_ci], nft, id, amt);
+        SHARDS.add(stats[_ci], id, val);
     }
 }
