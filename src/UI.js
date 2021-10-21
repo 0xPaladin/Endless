@@ -122,6 +122,7 @@ const UI = (app)=>{
     constructor() {
       super();
       this.state = {
+        nets : ["FTM","tPHOTON","ONE"],
         modal: {},
         shard: {},
         time: Date.now(),
@@ -184,9 +185,8 @@ const UI = (app)=>{
       shard.canvasDisplay(0, 0)
       console.log(shard)
 
-      if(app.eth.checkShardStats)
-      {
-        app.eth.checkShardStats(shard)
+      if(app.eth.checkShardClaims){
+        shard.ethStats() 
       }
     }
 
@@ -317,7 +317,7 @@ const UI = (app)=>{
       return myShards.length == 0 ? "" : out
     }
 
-    render(props, {shard, address, network, balance, nFixed, NFT, gen, myShards, modal}) {
+    render(props, {nets, shard, address, network, balance, nFixed, NFT, gen, myShards, modal}) {
       let Gen0 = NFT.Gen0
 
       return html`
@@ -333,9 +333,9 @@ const UI = (app)=>{
               </div>
             </div>
             <div class="container" align="center">
-              ${!["FTM", "gETH","PHOTON"].includes(network) ? html`
+              ${!nets.includes(network) ? html`
                 <p class="rounded bg-danger text-white p-2" align="center">
-                  Endless is not available on this chain. Please change to the Evmos Testnet.
+                  Endless is not available on this chain. Please change to an enabled network.
                 </p>
               ` : ""}
               <div align="center">
@@ -347,7 +347,7 @@ const UI = (app)=>{
               <div class="accordion" id="accordionMain">
                 <div id="about" class="collapse" data-parent="#accordionMain">${About()}</div>
                 <div id="myShards" class="collapse" data-parent="#accordionMain">
-                  ${["FTM","PHOTON"].includes(network) ? html`
+                  ${nets.includes(network) ? html`
                   <div>
                       <button type="button" class="btn btn-info btn-block" onClick=${()=>this.shardClaim()}>Commit to Claim a Shard [free, gas only]</button>
                   </div>
@@ -358,7 +358,7 @@ const UI = (app)=>{
                   <${Ally}><//>
                 </div>
                 <div class="collapse" id="viewShards" data-parent="#accordionMain">
-                  ${["FTM"].includes(network) ? html`
+                  ${nets.includes(network) ? html`
                     <div>
                         <button type="button" class="btn btn-info btn-block" onClick=${()=>this.shardClaim()}>Commit to Claim a Shard [free, gas only]</button>
                     </div>

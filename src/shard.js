@@ -22,12 +22,10 @@ const GEN = {
   },
   "9000" : {
     "0x8dB24cD8451B133115588ff1350ca47aefE2CB8c": "E",
+  },
+  "1666600000" : {
+    "0xC79b585e7543fc42ff8B4B07784290B032643f2c": "E",
   }
-}
-
-const MAYCLAIM = {
-  "250" : [0,1,2,3,4,6,8] ,
-  "9000" : []
 }
 
 /*
@@ -511,7 +509,7 @@ const ShardFactory = (app)=>{
     }
     set stats ({ids, vals}) {
       let {_stats} = this 
-      ids.forEach((id,i) => _stats[id.split(".")[1]] = vals[i])
+      ids.forEach((id,i) => _stats[id] = vals[i])
     }
     set featureClaimTimes ({_i, times}) {
       let {_features} = this
@@ -553,8 +551,9 @@ const ShardFactory = (app)=>{
       //get claim times 
       app.eth.checkShardClaims(this)
 
-      let statIds = ["SRD.DMD","SRD.RLC0","SRD.WAY"] 
-      let vals = (await app.eth.getBatchOfStats(statIds,this._721,this.id,false)).map(bn => bn.toNumber())
+      let statIds = ["DMD","RLC0","WAY"] 
+      //(stats, nft, id, isBytes)
+      let vals = (await app.eth.getBatchOfStats(statIds,this._721,this.id,false)).map(bn => bn == "0x" ? 0 : 0)
       
       //set 
       this.stats = {ids: statIds, vals}
@@ -796,29 +795,15 @@ const ShardFactory = (app)=>{
 
   //submit claim 
   const EVMSiteClaim = (nft, id, fi, type) => {
-    let C = sig()["FC"+type]
+    let C = sig()
+    let F = app.net.chainId == "250" ? C["FC"+type].claim : C.ShardFeatures.claim 
+    let calldata = app.net.chainId == "250" ? [nft, id, fi] : [id,fi]
 
       //claim it - handle tx notification
-      //claim (address nft, uint256 id, uint256 fi) 
-      C.claim(nft, id, fi).then(async tx=>{
-        let {hash} = tx
-
-        //log and notification
-        let text = "Claim Submitted: " + hash
-        console.log(text)
-        app.simpleNotify(text, "info", "center")
-
-        tx.wait(1).then(res=>{
-          let text = "Claim Confirmed: " + res.blockNumber
-          console.log(text)
-          app.simpleNotify(text, "info", "center")
-
-          //update 
-          app.eth.checkShardStats(byContract(nft,id))
-        }
-        )
-      }
-      )
+      //transfer
+      F(...calldata).then(tx => app.eth.handleTx(tx,"Claim Feature").then( _ => {
+        byContract(nft,id).ethStats()
+      }))
   }
 
   const SiteClaim = (mayClaim, data) => {
@@ -850,7 +835,7 @@ const ShardFactory = (app)=>{
     let shard = app.UI.Shard.props.shard
     let {wi, what, hash, parent, claimTime = 0} = data
     let site = Features[what](hash, parent)
-    let MC = app.net.chainId ? MAYCLAIM[app.net.chainId] : []
+    let MC = app.eth.mayClaim
 
     //claim conditions 
     let _mayClaim = MC.includes(wi) && shard.isOwned && (claimTime == 0 || (Date.now()/1000 - claimTime) > (60*60*24))

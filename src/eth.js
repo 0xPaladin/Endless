@@ -4,23 +4,25 @@ import {ethers} from "../lib/ethers-5.0.min.js"
 import {keccak256} from "./ETHRandom.js"
 //abi 
 const ABI = {}
-import * as fABI from "../fantom/abi.js"
-ABI["250"] = fABI
-import * as etABI from "../evmos-test/abi.js"
-ABI["9000"] = etABI
+import {r1, r2} from "../solidity/abi.js"
+ABI["250"] = r1
+ABI["9000"] = r2
+ABI["1666600000"] = r2 
 
 let reader = null, provider = null, signer = null;
 
 const NETRPC = {
   5 : "https://goerli.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
   250 : "https://rpc.ftm.tools",
-  9000 : "http://arsiamons.rpc.evmos.org:8545"
+  9000 : "http://arsiamons.rpc.evmos.org:8545",
+  1666600000 : "https://api.harmony.one"
 }
 //id,name,nFixed,cost
 const NETDATA = {
   5 : [5,"gETH",4,0.001],
   250 : [250,"FTM",0,1],
-  9000 : [9000,"PHOTON",0,10]
+  9000 : [9000,"tPHOTON",0,10],
+  1666600000 : [1666600000,"ONE",10]
 }
 
 
@@ -88,9 +90,18 @@ const CONTRACTS = {
     "ERC721FreeClaim" : "0xB60794c2fcbc7a74672D273F80CE1CA5050435a8", 
     "ERC721Utilities" : "0xd17E5A1cAbaF6898582658045Cca242f9C4DD5Ba",
     "ShardCosmic" : "0xc8B0bEac15375FcD15c81E3f484a6D485fbf4AA4",
+    "ShardFeatures" : "0x6F154e7066D3BB068BAbd224669b72f70d33d0AF",
+    "ShardFeatureClaimPoll" : "0x53513dd02AF722F3Ea582cA2E055b4E97d225C22"
+  },
+  1666600000 : {
+    "ERC721FreeClaim" : "0xedb2517b60DCDEc0d191E3Ad2719D4CA6ec9Cb8b", 
+    "ERC721Utilities" : "0xE6c64B33C7F80a5976F6074A71eab6ea036204d7",
+    "ShardCosmic" : "0xae022C5b791ECc6Ff33c974d573f5D1540aaDAec",
+    "ShardFeatures" : "0x835f590C64715851B17457eE57624D8E50F4c095",
+    "ShardFeatureClaimPoll" : "0xb8ceb752468671f973bdeb894A9f9DE8f8B7E5f6"
   }
 }
-const READONLY = ["ERC721FullNoBurn.Ally","ERC721FullNoBurn.Gen0","ERC721FullNoBurn.GenE","ERC721FullNoBurn.GenR","StatsBytesUtilities","ERC721Utilities","FeatureLastClaimPoll"]
+const READONLY = ["ERC721FullNoBurn.Ally","ERC721FullNoBurn.Gen0","ERC721FullNoBurn.GenE","ERC721FullNoBurn.GenR","StatsBytesUtilities","ERC721Utilities","FeatureLastClaimPoll","ShardFeatureClaimPoll"]
 
 const NFTIDS = {
   5 : {
@@ -104,7 +115,24 @@ const NFTIDS = {
   },
   9000 : {
     "GenE" : "0x8dB24cD8451B133115588ff1350ca47aefE2CB8c",
+  },
+  1666600000 : {
+    "GenE" : "0xC79b585e7543fc42ff8B4B07784290B032643f2c",
   }
+}
+
+const MAYCLAIM = {
+  "250" : {} ,
+  "9000" : {
+    1 : "0x6F154e7066D3BB068BAbd224669b72f70d33d0AF",
+    2 : "0x6F154e7066D3BB068BAbd224669b72f70d33d0AF",
+    3 : "0x6F154e7066D3BB068BAbd224669b72f70d33d0AF"
+  },
+  "1666600000" : {
+    1 : "0x835f590C64715851B17457eE57624D8E50F4c095",
+    2 : "0x835f590C64715851B17457eE57624D8E50F4c095",
+    3 : "0x835f590C64715851B17457eE57624D8E50F4c095"
+  },
 }
 
 //load the contracts given a network name 
@@ -153,6 +181,7 @@ const EVMManager = async (app) => {
   let address = "", NFT = {};
 
   app.eth = {
+    mayClaim : [],
     contracts : {},
     parseEther : ethers.utils.parseEther,
     parseUnits : ethers.utils.parseUnits,
@@ -169,7 +198,8 @@ const EVMManager = async (app) => {
   //pull a batch of ids from an NFT 
   app.eth.getNFTIdBatch = async function (nftAddress) {
       let F = this.contracts.read.ERC721Utilities.getNFTIdBatch
-      return (await F(nftAddress,address)).map(bn => bn.toNumber()) 
+      let ids = (await F(nftAddress,address)) || []
+      return ids.map(bn => bn.toNumber()) 
     }
 
   //pull a batch of stats from a singular nft 
@@ -210,22 +240,22 @@ const EVMManager = async (app) => {
 
     //check for the claims of a shard 
     app.eth.checkShardClaims = async function (shard) {
-      let {_721, id} = shard
-      let C = read().FeatureLastClaimPoll
+      if (chainId == 250) return  
+      let MC = MAYCLAIM[chainId] || {}
+      let F = read().ShardFeatureClaimPoll.lastClaimBatch
 
-      //lastClaimBatch (bytes32[] calldata ids, address[] calldata claims)
-      let _i = [], ids = [], claims=[];
+      //lastClaimBatch (uint256 sid, address[] calldata _claims, uint256[] calldata fids)
+      let _i = [], claims=[];
       //collect ids and claim addresses
-      shard._features.filter(f => CONTRACTS[chainId]["FeatureClaimFixed.FC"+f.wi])
+      shard._features.filter(f => Object.keys(MC).map(Number).includes(f.wi))
         .forEach(f => {
           _i.push(f.i)
-          //keccak256(abi.encode(nft, id, fi))
-          ids.push(keccak256(["address","uint256","uint256"], [_721,id,f.i]))
-          claims.push(CONTRACTS[chainId]["FeatureClaimFixed.FC"+f.wi])
+          claims.push(MC[f.wi])
         })      
 
       //call chain data 
-      let times = (await C.lastClaimBatch(ids,claims)).map(bn => bn.toNumber())
+      let calldata = [shard.id, claims, _i] 
+      let times = (await F(...calldata)).map(bn => bn.toNumber())
       //set times
       shard.featureClaimTimes = {_i,times}
     }
@@ -261,6 +291,8 @@ const EVMManager = async (app) => {
           let _text = " Confirmed: " + res.blockNumber
           console.log(_text)
           app.simpleNotify(_text, "info", "center")
+
+          return
         }
         )
     }
@@ -344,6 +376,8 @@ const EVMManager = async (app) => {
     //check if the chain exists
     if(!CONTRACTS[chainId])
       return
+
+    app.eth.mayClaim = MAYCLAIM[chainId] ? Object.keys(MAYCLAIM[chainId]).map(Number) : []
 
     //check nfts 
     Object.keys(NFTIDS[chainId]).forEach(cid => checkNFTBalance(cid))

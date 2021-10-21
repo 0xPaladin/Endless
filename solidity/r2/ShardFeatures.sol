@@ -23,8 +23,8 @@ contract ShardFeatures {
     address public admin;
     
     //contracts 
-    IERC721 public SHARDS = IERC721(0x8dB24cD8451B133115588ff1350ca47aefE2CB8c);
-    ISize public SIZE = ISize(0xc8B0bEac15375FcD15c81E3f484a6D485fbf4AA4);
+    IERC721 public SHARDS = IERC721(0xC79b585e7543fc42ff8B4B07784290B032643f2c);
+    ISize public SIZE = ISize(0xae022C5b791ECc6Ff33c974d573f5D1540aaDAec);
 
     uint256[12] internal ALIGNMENT = [0,1,1,2,2,2,2,2,2,3,3,4];
     uint256[5] internal ALIGNMENT_MOD = [8,10,5,0,2];
@@ -120,15 +120,6 @@ contract ShardFeatures {
     uint256 internal PERIOD = 1 days;
     mapping (bytes32 => uint256) public lastClaim;
     
-    //admin set what may be claimed 
-    function setClaims (uint256 ci, string[] calldata stats, uint256[] calldata min, uint256[] calldata max) 
-        public
-    {
-        require(msg.sender == admin, "ShardFeatures: must be admin to set claims");
-        
-        _claimWhat[ci] = abi.encode(stats,min,max);
-    }
-    
     //unique id for each claim for traking time 
     function _claimId (uint256 id, uint256 fi) 
         internal pure returns(bytes32) 
@@ -141,6 +132,15 @@ contract ShardFeatures {
         return SHARDS.getApproved(id) == msg.sender || SHARDS.ownerOf(id) == msg.sender;
     }
     
+    //admin set what may be claimed 
+    function setClaims (uint256 ci, string[] calldata stats, uint256[] calldata min, uint256[] calldata max) 
+        public
+    {
+        require(msg.sender == admin, "ShardFeatures: must be admin to set claims");
+        
+        _claimWhat[ci] = abi.encode(stats,min,max);
+    }
+    
     function _mayClaim (uint256 id, uint256 fi) 
         internal returns (string[] memory stats, uint256[] memory min, uint256[] memory max)
     {
@@ -149,7 +149,7 @@ contract ShardFeatures {
         //get feature 
         (uint256 _fid, bytes32 _h) = featureByIndex(id, fi);
         require(_h != bytes32(0), "ShardFeatures: beyond available features");
-        require(_claimWhat[_fid].length == 0, "ShardFeatures: incorrect feature type for cliam");
+        require(_claimWhat[_fid].length != 0, "ShardFeatures: incorrect feature type for cliam");
         
         //claim period 
         bytes32 _claim = _claimId(id,fi);
