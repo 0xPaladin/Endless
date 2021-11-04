@@ -5,14 +5,9 @@ import {random, integer, dice, pickone, weighted, shuffle, abiBytes, keccak256} 
 import {Capitalize, Roll} from "./endless-utils.js"
 import*as TableGen from "./endless-tables.js"
 
-const V = {
-  "0": {
-    "seeds": [256 ** 4, 256 ** 4, 256 ** 4, 256 ** 4]
-  }
-}
 
-const CREATURE = {
-  "base": ["Human", "Humanoid", "Beast", "Monster"],
+const LIFEFORM = {
+  "base": ["Human","Humanoid","Animal","Artificial","Alien"],
   "Humanoid": {
     "what" : [["rare", "uncommon", "common"], [2, 3, 7]],
     "rare" : [["UndeadMajor","Animal","Werebeast","tiny"],[2,5,2,3]],
@@ -73,12 +68,12 @@ const CREATURE = {
 
 const SIZES = ["tiny", "small", "medium", "large", "huge"]
 
-const Creature = { 
+const Lifeform = { 
   size (hash) {
-    return CREATURE.size.id[integer(keccak256(["bytes32","string"], [hash, "size"]),12)]
+    return LIFEFORM.size.id[integer(keccak256(["bytes32","string"], [hash, "size"]),12)]
   },
   nApp (hash, size) {
-    return CREATURE.nApp.id[size][integer(keccak256(["bytes32","string"], [hash, "nApp"]),12)]
+    return LIFEFORM.nApp.id[size][integer(keccak256(["bytes32","string"], [hash, "nApp"]),12)]
   },
   skillMods (hash){
     //boost 
@@ -154,104 +149,97 @@ const Creature = {
       what
     }
   },
-  Animal (_hash) {
+  AnimalType (_hash) {
     let hash = keccak256(["bytes32","string"], [_hash, "animal"])
-    let wae = weighted(hash, ...CREATURE.Animal.forms)
+    let wae = weighted(hash, ...LIFEFORM.Animal.forms)
 
     let hashForm = keccak256(["bytes32","string"], [hash, "form"])
     return {
       "is" : "animal",
-      "what" : pickone(hashForm, CREATURE.Animal.wae[wae]),
+      "what" : pickone(hashForm, LIFEFORM.Animal.wae[wae]),
     }
   },
-  Beast(seed) {
-    let hash = keccak256(["string","uint256"], ["Beast",seed])
-    
+  Animal (hash) {
     let _size = this.size(hash)
     let _nApp = this.nApp(hash, _size)
 
-    let data = {
-      "is" : "Beast",
-      "what" : Capitalize(this.Animal(hash).what),
-      seed,
+    return {
+      "what" : Capitalize(this.AnimalType(hash).what),
       _size,
       _nApp,
-      armor : weighted(keccak256(["bytes32","string"], [hash,"armor"]), ...CREATURE.armor),
-      _baseSkills: this.skillMods(hash).slice() 
+      armor : weighted(keccak256(["bytes32","string"], [hash,"armor"]), ...LIFEFORM.armor)
     }
-
-    return this.format(data)
   },
-  Monster(seed) {
-    let hash = keccak256(["string","uint256"], ["Monster",seed])
-    
+  Artificial (hash) {
     let _size = this.size(hash)
     let _nApp = this.nApp(hash, _size)
-
-    let data = {
-      "is" : "Monster",
-      "what" : "Monster",
-      seed,
+    
+    return {
+      "what" : "Artificial",
       _size,
       _nApp,
-      armor : weighted(keccak256(["bytes32","string"], [hash,"armor"]), ...CREATURE.armor),
-      _baseSkills: this.skillMods(hash).slice() 
+      armor : weighted(keccak256(["bytes32","string"], [hash,"armor"]), ...LIFEFORM.armor)
     }
-
-    return this.format(data)
   },
-  Humanoid(seed) {    
-    let hash = keccak256(["string","uint256"], ["Humanoid",seed])
-
+  Alien (hash) {
     let _size = this.size(hash)
     let _nApp = this.nApp(hash, _size)
 
-    let data = {
-      "is" : "Humanoid",
+    return {
+      "what" : "Alien",
+      _size,
+      _nApp,
+      armor : weighted(keccak256(["bytes32","string"], [hash,"armor"]), ...LIFEFORM.armor)
+    }
+  },
+  Humanoid(hash) {    
+    let _size = this.size(hash)
+    let _nApp = this.nApp(hash, _size)
+
+    return {
       "what" : "Humanoid",
-      seed,
       _size,
       _nApp,
-      armor : 0,
-      _baseSkills: this.skillMods(hash).slice() 
+      armor : 0
     }
-
-    return this.format(data)
   },
-  Human(seed) {
-    let hash = keccak256(["string","uint256"], ["Human",seed])
-
+  Human(hash) {
     let _size = 2
     let _nApp = this.nApp(hash, _size)
 
-    let data = {
-      "is" : "Human",
+    return {
       "what" : "Human",
-      seed,
       _size,
       _nApp,
       armor : 0,
-      _baseSkills: this.skillMods(hash).slice() 
     }
-
-    return this.format(data)
   },
   /*
     Format final object
   */
-  format (data) {
-    let {_nApp,_size, _baseSkills} = data
+  format (fHash, base, seed) {
+    let _is = LIFEFORM.base[base]
+    let hash = keccak256(["string","uint256"], [_is,seed])
+
+    //basic lifeform data 
+    let data = this[_is](hash)
+   
+    let _baseSkills = this.skillMods(hash).slice()
+
+    let {_nApp,_size} = data
 
     //log check - TODO remove
     if(!data.what || data.what == "") console.log(data)
 
     let formatted = {
-      size: CREATURE.size.text[_size],
-      nApp: CREATURE.nApp.text[_nApp],
-      qty : CREATURE.nApp.qty[_nApp],
-      hp: CREATURE.hp[_size][_nApp],
-      dmg: CREATURE.dmg[_size][_nApp],
-      baseSkills: _baseSkills.map(id => CREATURE.skillGroups.text[id])
+      is : _is,
+      seed, 
+      size: LIFEFORM.size.text[_size],
+      nApp: LIFEFORM.nApp.text[_nApp],
+      qty : LIFEFORM.nApp.qty[_nApp],
+      hp: LIFEFORM.hp[_size][_nApp],
+      dmg: LIFEFORM.dmg[_size][_nApp],
+      baseSkills: _baseSkills.map(id => LIFEFORM.skillGroups.text[id])
     }
 
     return Object.assign({
@@ -270,8 +258,7 @@ const Creature = {
     const SEEDMAX = 256 ** 4
     //first is the base form of the creature
     let bp = integer(hash,100)
-    let base = bp < 15 ? 0 : bp < 50 ? 1 : bp < 85 ? 2 : 3;
-    let what = CREATURE.base[base]
+    let base = bp < 10 ? 0 : bp < 35 ? 1 : bp < 60 ? 2 : bp < 80 ? 3 : 4;
 
     //next is the seed for the type
     let rp = integer(keccak256(["bytes32", "string"], [hash, "seed-distribution"]),100)
@@ -280,26 +267,65 @@ const Creature = {
     //get seed based upon range
     let seed = integer(keccak256(["bytes32", "string"], [hash, "seed"]), _rangeMax)
 
-    return Object.assign({hash}, this[what](seed))
+    return this.format(hash, base, seed)
   }
 }
 
-const CreatureManager = (app) => {
-  app.creature = {}
-  let all =  app.creature.all = {}
+const LifeformManager = (app) => {
+  let sig = ()=>app.eth.contracts.sig;
+
+  app.lifeform = {}
+  let all =  app.lifeform.all = {}
   
   const add = (hash) => {
-    all[hash] = Creature.byHash(hash)
+    all[hash] = Lifeform.byHash(hash)
     return all[hash]
   } 
-  const byHash = app.creature.byHash = (hash) => all[hash] || add(hash);
+  const byHash = app.lifeform.byHash = (hash) => all[hash] || add(hash);
 
   /*
     UI 
   */
   let {h, Component, render, html} = app.UI
 
-  app.creature.UI = ({i,hash}) => {
+  //submit claim 
+  const EVMClaim = (nft, id, fi) => {
+    if (app.net.chainId == "250") return
+
+    let F = sig().ShardAlly.claim 
+    let calldata = [id, fi]
+
+      //claim it - handle tx notification
+      //transfer
+      F(...calldata).then(tx => app.eth.handleTx(tx,"Claim Ally").then( _ => {
+        
+      }))
+  }
+
+  const AllyClaim = (mayClaim, i, _creature) => {
+    if(!mayClaim) return
+    
+    let modal = app.UI.modal
+    let {_721, id, _features, _cosmic} = app.UI.Shard.props.shard
+    let cost = [10,5,3][_creature._nApp]
+
+    let body = html`
+    <div align="center">
+      <h5 align="left">Claim Ally: ${Capitalize(_creature.what)}</h5>
+      <div class="d-flex justify-content-between">
+        <div>Cost: ${cost}</div> 
+      </div>
+      <button class="btn btn-success mx-1" type="button" data-dismiss="modal" onClick=${()=>EVMClaim(_721, id, i)} disabled=${cost>_cosmic}>Yes</button>
+      <button class="btn btn-light mx-1" type="button" data-dismiss="modal">No</button>
+    </div>
+    `
+
+    //set modal and call 
+    modal.setState({body})
+    $('#mainModal').modal()
+  }
+
+  app.lifeform.UI = ({i,hash}) => {
     let shard = app.UI.Shard.props.shard
     let claimTime = i > -1 ? shard._features[i].claimTime : 0
 
@@ -311,7 +337,7 @@ const CreatureManager = (app) => {
     let timer = shard.isOwned && i>-1 && !_mayClaim ? "🕐" : ""
 
     return html`
-      <div onClick=${()=>console.log(_creature)}>
+      <div onClick=${()=>AllyClaim(_mayClaim,i,_creature)}>
         <span>
           <span class=${_mayClaim ? 'link' : ''}>${timer} ${Capitalize(what)}</span>
           <span class="mx-1 font-sm">
@@ -325,4 +351,4 @@ const CreatureManager = (app) => {
   }
 }
 
-export {CreatureManager}
+export {LifeformManager}

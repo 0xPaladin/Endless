@@ -122,7 +122,7 @@ const UI = (app)=>{
     constructor() {
       super();
       this.state = {
-        nets : ["FTM","tPHOTON","ONE"],
+        nets : ["FTM","tPHOTON","tCRO","ONE"],
         modal: {},
         shard: {},
         time: Date.now(),

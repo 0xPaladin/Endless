@@ -80,8 +80,8 @@ const SettlementManager = (app)=>{
     let culture = app.culture.byHash(_culture)
     let {alignment, baseSkills, _people} = culture
 
-    //pull UI function from creature.js 
-    let cUI = app.creature.UI
+    //pull UI function from lifeform.js 
+    let cUI = app.lifeform.UI
 
     return html`
       <div>

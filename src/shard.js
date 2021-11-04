@@ -20,6 +20,9 @@ const GEN = {
     "0x693eD718D4b4420817e0A2e6e606b888DCbDb39B": "E",
     "0xce761D788DF608BD21bdd59d6f4B54b2e27F25Bb": "R"
   },
+  "338" : {
+    "0x8dB24cD8451B133115588ff1350ca47aefE2CB8c": "E",
+  },
   "9000" : {
     "0x8dB24cD8451B133115588ff1350ca47aefE2CB8c": "E",
   },
@@ -553,7 +556,9 @@ const ShardFactory = (app)=>{
 
       let statIds = ["DMD","RLC0","WAY"] 
       //(stats, nft, id, isBytes)
-      let vals = (await app.eth.getBatchOfStats(statIds,this._721,this.id,false)).map(bn => bn == "0x" ? 0 : 0)
+      let vals = (await app.eth.getBatchOfStats(statIds,this._721,this.id,false))
+        .map(v => app.eth.decode(["uint256"],v)[0])
+        .map(bn => bn ? bn.toNumber() : 0)
       
       //set 
       this.stats = {ids: statIds, vals}
@@ -750,7 +755,7 @@ const ShardFactory = (app)=>{
     let {alignment, baseSkills, _people} = culture
 
     //pull UI function from creature.js 
-    let cUI = app.creature.UI
+    let cUI = app.lifeform.UI
     
     return html`
       <div>
@@ -767,7 +772,7 @@ const ShardFactory = (app)=>{
   */
   function UIInhabitants({ppl}) {
     //pull UI function from creature.js 
-    let cUI = app.creature.UI
+    let cUI = app.lifeform.UI
 
     return html`
       <div class="col rounded bg-light p-2 m-1">

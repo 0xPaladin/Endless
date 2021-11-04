@@ -57,8 +57,8 @@ let app = {
 EVMManager(app)
 
 //People / Creatures
-import {CreatureManager} from "./creature.js"
-CreatureManager(app)
+import {LifeformManager} from "./lifeform.js"
+LifeformManager(app)
 
 //Culture
 import {CultureManager} from "./culture.js"

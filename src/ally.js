@@ -26,12 +26,15 @@ const AllyFactory = (app)=>{
       this.isOwned = opts.isOwned || false 
     }
     get people () {
-      let [base,seed,culture] = decode(["uint256","uint256","bytes32"],this._people)
-      return {
-        base : base.toNumber(),
-        seed : seed.toNumber(),
-        culture
-      }
+      let [lifeform,culture] = decode(["bytes32","bytes32"],this._people)
+      
+      return { lifeform, culture }
+    }
+    get lifeform () {
+      return app.lifeform.byHash(this.people.lifeform)
+    }
+    get culture () {
+      return app.culture.byHash(this.people.culture)
     }
   }
 

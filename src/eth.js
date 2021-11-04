@@ -6,6 +6,7 @@ import {keccak256} from "./ETHRandom.js"
 const ABI = {}
 import {r1, r2} from "../solidity/abi.js"
 ABI["250"] = r1
+ABI["338"] = r2
 ABI["9000"] = r2
 ABI["1666600000"] = r2 
 
@@ -15,12 +16,14 @@ const NETRPC = {
   5 : "https://goerli.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
   250 : "https://rpc.ftm.tools",
   9000 : "http://arsiamons.rpc.evmos.org:8545",
-  1666600000 : "https://api.harmony.one"
+  1666600000 : "https://api.harmony.one",
+  338 : "https://cronos-testnet-3.crypto.org:8545/"
 }
 //id,name,nFixed,cost
 const NETDATA = {
   5 : [5,"gETH",4,0.001],
   250 : [250,"FTM",0,1],
+  338 : [338,"tCRO",0,10],
   9000 : [9000,"tPHOTON",0,10],
   1666600000 : [1666600000,"ONE",10]
 }
@@ -86,12 +89,20 @@ const CONTRACTS = {
     "FeatureClaimFixed.FC8" : "0x215989c299FbE62C903894021C52555d4475182e",
     "FeatureLastClaimPoll" : "0x950CF55E8826d41097a0bCbBd30DE113CEa9cb17"
   },
+  338 : {
+    "ERC721FreeClaim" : "0xB60794c2fcbc7a74672D273F80CE1CA5050435a8", 
+    "ERC721Utilities" : "0x326F012b2f893C44a1573A07F75c64C5b2718993",
+    "ShardCosmic" : "0xeEd019D0726e415526804fb3105a98323911E494",
+    "ShardFeatures" : "0x693eD718D4b4420817e0A2e6e606b888DCbDb39B",
+    "ShardFeatureClaimPoll" : "0xC79b585e7543fc42ff8B4B07784290B032643f2c",
+  },
   9000 : {
     "ERC721FreeClaim" : "0xB60794c2fcbc7a74672D273F80CE1CA5050435a8", 
     "ERC721Utilities" : "0xd17E5A1cAbaF6898582658045Cca242f9C4DD5Ba",
     "ShardCosmic" : "0xc8B0bEac15375FcD15c81E3f484a6D485fbf4AA4",
     "ShardFeatures" : "0x6F154e7066D3BB068BAbd224669b72f70d33d0AF",
-    "ShardFeatureClaimPoll" : "0x53513dd02AF722F3Ea582cA2E055b4E97d225C22"
+    "ShardFeatureClaimPoll" : "0x53513dd02AF722F3Ea582cA2E055b4E97d225C22",
+    "ShardAlly" : "0xB1f6F15e2324fF93cBd5039AbB82Da05daBB1110"
   },
   1666600000 : {
     "ERC721FreeClaim" : "0xedb2517b60DCDEc0d191E3Ad2719D4CA6ec9Cb8b", 
@@ -113,8 +124,12 @@ const NFTIDS = {
     "GenR" : "0xce761D788DF608BD21bdd59d6f4B54b2e27F25Bb",
     "Ally" : "0xAe1Ad876f3759eaBcc04733ce32918cBEC5218B5",
   },
+  338 : {
+    "GenE" : "0x8dB24cD8451B133115588ff1350ca47aefE2CB8c",
+  },
   9000 : {
     "GenE" : "0x8dB24cD8451B133115588ff1350ca47aefE2CB8c",
+    "Ally" : "0xbd80C80a62521c9E6205f1F7574e639283B250ca"
   },
   1666600000 : {
     "GenE" : "0xC79b585e7543fc42ff8B4B07784290B032643f2c",
@@ -123,15 +138,20 @@ const NFTIDS = {
 
 const MAYCLAIM = {
   "250" : {} ,
+  "338" : {},
   "9000" : {
+    0 : "0xB1f6F15e2324fF93cBd5039AbB82Da05daBB1110",
     1 : "0x6F154e7066D3BB068BAbd224669b72f70d33d0AF",
     2 : "0x6F154e7066D3BB068BAbd224669b72f70d33d0AF",
-    3 : "0x6F154e7066D3BB068BAbd224669b72f70d33d0AF"
+    3 : "0x6F154e7066D3BB068BAbd224669b72f70d33d0AF",
+    4 : "0x6F154e7066D3BB068BAbd224669b72f70d33d0AF",
+    6 : "0x6F154e7066D3BB068BAbd224669b72f70d33d0AF",
+    8 : "0x6F154e7066D3BB068BAbd224669b72f70d33d0AF",
   },
   "1666600000" : {
     1 : "0x835f590C64715851B17457eE57624D8E50F4c095",
     2 : "0x835f590C64715851B17457eE57624D8E50F4c095",
-    3 : "0x835f590C64715851B17457eE57624D8E50F4c095"
+    3 : "0x835f590C64715851B17457eE57624D8E50F4c095",
   },
 }
 
@@ -324,9 +344,8 @@ const EVMManager = async (app) => {
     _cosmic.forEach((val,i) => app.shard.byContract(nft.address,_ids[i]).cosmic = val)
   }
 
-  const checkAllyIds = async (nft) => {
-    return
-    let _ids = await app.eth.getNFTIdBatch(nft.id)
+  const checkAlly = async (nft) => {
+    let _ids = await app.eth.getNFTIdBatch(nft.address)
     let _people = await app.eth.getStatsOfIdBatch("people",nft.address,_ids,true)
 
     nft.owned = _ids.forEach((id,i)=> {
@@ -351,7 +370,7 @@ const EVMManager = async (app) => {
       checkShards(nft).catch(console.log)  
     }
     else if (id == "Ally") {
-      checkAllyIds(nft).catch(console.log)
+      checkAlly(nft).catch(console.log)
     }
   }
 
