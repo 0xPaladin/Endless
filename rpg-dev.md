@@ -2,7 +2,7 @@
 *Layout for ttrpg development to support Endless.*
 
 Endless will feature a Science Fantasy setting (tech + magic) that is loosely based upon the cryptocurrency market. 
-Every major chain (coin) will have its own people, places an things...    
+Every major chain (coin) will have its own people, places and things...    
 
 ## Core Book
 **Using OSR Systems in Endless**
