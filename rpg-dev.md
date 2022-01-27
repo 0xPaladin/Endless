@@ -27,4 +27,5 @@ Every major chain (coin) will have its own people, places an things...
 -	Important Shards (3; 1000 words & 1 art each)
 -	Loot (10) (gear/feats/spells/magic items; 75 words each & 1 art per 2)
 -	Creatures (7; 200 words & 1 art each)
+
 Total: 6250 words & 18 art  
